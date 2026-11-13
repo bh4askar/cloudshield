@@ -7,25 +7,18 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.*;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.lambda.LambdaClient;
-import software.amazon.awssdk.services.lambda.model.InvocationType;
 
 @Service
 public class JobDispatcher {
   private final RuntimeContext runtime;
   private final ExecutorService worker = Executors.newSingleThreadExecutor();
-  private final LambdaClient lambda;
+  private final com.azure.storage.queue.QueueClient queue;
 
   public JobDispatcher(RuntimeContext runtime) {
     this.runtime = runtime;
-    lambda =
-        runtime.config().aws()
-            ? LambdaClient.builder().region(Region.of(runtime.config().primaryRegion())).build()
-            : null;
+    queue = runtime.config().azure() ? AzureClients.queue(runtime.config()) : null;
     // In-process demo jobs cannot survive a stopped JVM. Record interruption visibly.
-    if (!runtime.config().aws())
+    if (!runtime.config().azure())
       for (Job job : runtime.repository().jobs())
         if (job.status.equals("QUEUED") || job.status.equals("RUNNING")) {
           job.status = "FAILED";
@@ -74,26 +67,30 @@ public class JobDispatcher {
     job.tenantId = tenantId;
     runtime.repository().save(job);
     try {
-      if (runtime.config().aws()) {
-        if (runtime.config().workerFunction().isBlank())
-          throw new IllegalStateException("WORKER_FUNCTION is not configured");
-        lambda.invoke(
-            r ->
-                r.functionName(runtime.config().workerFunction())
-                    .invocationType(InvocationType.EVENT)
-                    .payload(
-                        SdkBytes.fromByteArray(
-                            Json.bytes(Map.of("jobId", job.id, "tenantId", tenantId)))));
-      } else worker.execute(() -> {
-        try { runtime.engine().execute(job.id); }
-        catch (RuntimeException | LinkageError failure) {
-          failure.printStackTrace();
-          Job failed=runtime.repository().job(job.id).orElse(job);
-          failed.status="FAILED";failed.finishedAt=Instant.now().toString();
-          failed.message="Worker execution failed: "+failure.getClass().getSimpleName()+". Check the server log.";
-          runtime.repository().save(failed);runtime.alerts().send(failed);runtime.repository().save(failed);
-        }
-      });
+      if (runtime.config().azure()) {
+        queue.sendMessage(
+            new String(
+                Json.bytes(Map.of("jobId", job.id, "tenantId", tenantId)),
+                java.nio.charset.StandardCharsets.UTF_8));
+      } else
+        worker.execute(
+            () -> {
+              try {
+                runtime.engine().execute(job.id);
+              } catch (RuntimeException | LinkageError failure) {
+                failure.printStackTrace();
+                Job failed = runtime.repository().job(job.id).orElse(job);
+                failed.status = "FAILED";
+                failed.finishedAt = Instant.now().toString();
+                failed.message =
+                    "Worker execution failed: "
+                        + failure.getClass().getSimpleName()
+                        + ". Check the server log.";
+                runtime.repository().save(failed);
+                runtime.alerts().send(failed);
+                runtime.repository().save(failed);
+              }
+            });
     } catch (Exception e) {
       job.status = "FAILED";
       job.finishedAt = Instant.now().toString();
@@ -107,6 +104,5 @@ public class JobDispatcher {
   @PreDestroy
   void close() {
     worker.shutdown();
-    if (lambda != null) lambda.close();
   }
 }

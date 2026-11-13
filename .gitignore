@@ -1,6 +1,7 @@
 # Build output and local application data
 **/target/
 /data/
+**/data/
 /runtime/
 *.log
 *.zip
@@ -39,3 +40,8 @@ crash.*.log
 .DS_Store
 Thumbs.db
 desktop.ini
+
+.azure/
+.azure-local/
+local.settings.json
+!worker/local.settings.json.example

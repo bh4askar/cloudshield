@@ -25,7 +25,7 @@ public class Schedules {
   }
 
   private void submitAll(String type) {
-    if (runtime.config().aws()) return;
+    if (runtime.config().azure()) return;
     dispatcher.submit(type, null, "SCHEDULE");
     for (var account : runtime.repository().accounts()) {
       try {

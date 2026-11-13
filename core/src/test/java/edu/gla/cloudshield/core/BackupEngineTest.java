@@ -299,18 +299,18 @@ class BackupEngineTest {
   }
 
   @Test
-  void awsRequiresDistinctRegions() {
+  void azureRequiresDistinctRegions() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
             Config.from(
                 Map.of(
                     "CLOUDSHIELD_MODE",
-                    "aws",
-                    "AWS_REGION",
-                    "ap-south-1",
-                    "SECONDARY_REGION",
-                    "ap-south-1")));
+                    "azure",
+                    "AZURE_PRIMARY_REGION",
+                    "centralindia",
+                    "AZURE_SECONDARY_REGION",
+                    "centralindia")));
   }
 
   static class ProxyStore implements BlobStore {

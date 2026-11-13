@@ -5,6 +5,15 @@ import java.util.List;
 import java.util.Optional;
 
 public interface Repository {
+  default Models.Job create(Models.Job job) {
+    synchronized (this) {
+      var existing = job(job.id);
+      if (existing.isPresent()) return existing.get();
+      save(job);
+      return job;
+    }
+  }
+
   void save(Job job);
 
   void save(Backup backup);

@@ -8,7 +8,8 @@ import java.util.*;
 
 public final class LocalRepository implements Repository {
   private final Path root;
-  private final java.util.concurrent.ConcurrentHashMap<String,Repository> tenants = new java.util.concurrent.ConcurrentHashMap<>();
+  private final java.util.concurrent.ConcurrentHashMap<String, Repository> tenants =
+      new java.util.concurrent.ConcurrentHashMap<>();
   private FileChannel channel;
   private FileLock lock;
 
@@ -143,6 +144,7 @@ public final class LocalRepository implements Repository {
 
   public Repository forTenant(String id) {
     if (!id.matches("[a-f0-9]{32}")) throw new IllegalArgumentException("Invalid workspace ID");
-    return tenants.computeIfAbsent(id, key -> new LocalRepository(root.resolve("tenants").resolve(key)));
+    return tenants.computeIfAbsent(
+        id, key -> new LocalRepository(root.resolve("tenants").resolve(key)));
   }
 }

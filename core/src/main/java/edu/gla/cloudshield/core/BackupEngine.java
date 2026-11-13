@@ -6,7 +6,7 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-/** Shared engine for the web demo and the serverless AWS worker. */
+/** Shared engine for the web demo and the serverless Azure worker. */
 public final class BackupEngine {
   private final Config config;
   private final BlobStore source, primary, secondary, recovery;
@@ -71,8 +71,7 @@ public final class BackupEngine {
     job.status = "QUEUED";
     job.createdAt = Instant.now().toString();
     job.message = "Waiting for worker";
-    repository.save(job);
-    return job;
+    return repository.create(job);
   }
 
   public Job execute(String jobId) {
@@ -83,7 +82,7 @@ public final class BackupEngine {
       Job job =
           repository.job(jobId).orElseThrow(() -> new IllegalArgumentException("Job not found"));
       if (Set.of("SUCCEEDED", "FAILED").contains(job.status))
-        return job; // Idempotent Lambda redelivery.
+        return job; // Idempotent queue redelivery.
       job.status = "RUNNING";
       job.startedAt = Instant.now().toString();
       job.message = "Operation in progress";

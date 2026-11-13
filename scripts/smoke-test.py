@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise a running LOCAL CloudShield demo through HTTP. Creates synthetic data, backups and restores.
+"""Exercise a disposable CloudShield workspace through HTTP. Creates synthetic data, backups and restores.
 Python standard library only. Credentials come from CLOUDSHIELD_USERNAME/PASSWORD or demo defaults.
 """
 import argparse
@@ -17,6 +17,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--url',default='http://127.0.0.1:8080')
     parser.add_argument('--output',type=Path)
+    parser.add_argument('--mode',choices=['local','azure'],default='local')
     args=parser.parse_args()
     base=args.url.rstrip('/')
     session=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
@@ -28,7 +29,7 @@ def main():
         if not condition: raise AssertionError(label)
         checks.append(label)
     check('Public liveness endpoint',get('/health')['status']=='UP')
-    check('Smoke suite targets local mode',get('/public/mode')['demo'])
+    check('Smoke suite targets requested mode',get('/public/mode')['demo'] == (args.mode=='local'))
     try:
         urllib.request.urlopen(base+'/api/overview',timeout=10)
         raise AssertionError('Anonymous API access allowed')
@@ -55,13 +56,13 @@ def main():
     except urllib.error.HTTPError as error:
         check('Mutation without CSRF rejected',error.code==403)
     def wait(job):
-        deadline=time.monotonic()+120
+        deadline=time.monotonic()+(600 if args.mode=='azure' else 120)
         while time.monotonic()<deadline:
             result=get('/api/jobs/'+job['id'])
             if result['status'] in ('SUCCEEDED','FAILED'):
                 if result['status']!='SUCCEEDED': raise AssertionError(result['message'])
                 return result
-            time.sleep(.2)
+            time.sleep(1 if args.mode=='azure' else .2)
         raise TimeoutError('Worker did not complete')
     original=get('/api/sample')
     backup=wait(post('/api/jobs',{'type':'BACKUP'}))
@@ -71,7 +72,7 @@ def main():
     baseline=wait(post('/api/jobs',{'type':'TEST','backupId':backup['backupId']}))
     check('Initial restore test and cleanup passed',baseline['cleanupStatus']=='CLEANED' and baseline['changedObjects']==0)
     post('/api/sample/change',{})
-    deadline=time.monotonic()+30
+    deadline=time.monotonic()+(180 if args.mode=='azure' else 30)
     while time.monotonic()<deadline:
         changed=get('/api/sample')
         if len(changed['registrations'])==len(original['registrations'])+1: break
@@ -86,7 +87,7 @@ def main():
     check('Earlier application data restored',restored==original)
     check('Live source preserved',get('/api/sample')==changed)
     check('Audit export contains the job',any(j['id']==restore['id'] for j in get('/api/report')['jobs']))
-    result={'checkedAt':datetime.now(timezone.utc).isoformat(),'mode':'local','status':'PASSED','checks':checks,
+    result={'checkedAt':datetime.now(timezone.utc).isoformat(),'mode':args.mode,'status':'PASSED','checks':checks,
         'snapshot':snapshot,'baselineTest':baseline,'changedDataTest':recovery_test,'restore':restore}
     if args.output:
         args.output.parent.mkdir(parents=True,exist_ok=True)

@@ -4,10 +4,9 @@
   <groupId>edu.gla.cloudshield</groupId><artifactId>cloudshield</artifactId><version>1.0.0</version><packaging>pom</packaging>
   <name>CloudShield</name>
   <modules><module>core</module><module>web</module><module>worker</module></modules>
-  <properties><maven.compiler.release>21</maven.compiler.release><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding><aws.version>2.31.78</aws.version><spring.version>3.5.7</spring.version></properties>
+  <properties><maven.compiler.release>21</maven.compiler.release><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding><spring.version>3.5.7</spring.version></properties>
   <dependencyManagement><dependencies>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-dependencies</artifactId><version>${spring.version}</version><type>pom</type><scope>import</scope></dependency>
-    <dependency><groupId>software.amazon.awssdk</groupId><artifactId>bom</artifactId><version>${aws.version}</version><type>pom</type><scope>import</scope></dependency>
   </dependencies></dependencyManagement>
   <build><pluginManagement><plugins>
     <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.14.0</version></plugin>

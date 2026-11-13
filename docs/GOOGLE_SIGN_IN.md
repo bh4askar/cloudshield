@@ -2,7 +2,7 @@
 
 CloudShield supports **Sign in with Google** for any verified Google account, including Gmail and Google Workspace accounts. The first successful sign-in creates an account and a separate sample-application workspace, then queues its initial backup. There is no email allowlist.
 
-On 12 November 2026, a Google OAuth web client was configured with an **External / In production** audience. A real sign-in created a private workspace and its first backup. A recovery test in that account succeeded and cleaned up its temporary objects. No billing/free-trial activation was needed.
+On 13 November 2026, a Google OAuth web client was configured with an **External / In production** audience. A real sign-in created a private workspace and its first backup. A recovery test in that account succeeded and cleaned up its temporary objects. No billing/free-trial activation was needed.
 
 Homepage: https://sites.google.com/view/cloudshield-g360/home
 
@@ -41,7 +41,7 @@ $env:GOOGLE_CLIENT_SECRET = 'your-client-secret'
 .\Start-CloudShield.cmd
 ```
 
-The launcher runs a local workspace with real Google identity. For cloud-backed workspaces, use AWS mode as described in `AWS_DEPLOYMENT.md` and start the JAR directly. OAuth credentials belong on the web dashboard, not the Lambda worker. Keep `.env.local` outside version control, screenshots, shared archives and public hosting.
+The launcher runs a local workspace with real Google identity. For cloud-backed workspaces, use Azure mode as described in `AZURE_SETUP.md` and start the JAR directly. OAuth credentials belong on the web dashboard, not the Functions worker. Keep `.env.local` outside version control, screenshots, shared archives and public hosting.
 
 The authorization request uses `prompt=select_account`. Session cookies use **SameSite=Lax** so the top-level Google callback retains the state/nonce session; Strict cookies break this flow. CSRF protection still guards mutations. Tokens, claims and credentials are not included in authentication failure logs.
 
@@ -49,19 +49,19 @@ The authorization request uses `prompt=select_account`. Session cookies use **Sa
 
 Spring Security performs the OAuth authorization-code and OpenID Connect flow. It manages state/nonce, validates Google's signed token and establishes a server-side session. The application additionally requires Google's expected issuer and a verified email claim.
 
-The account ID is derived from the verified issuer and stable Google subject ID. It is **not** supplied by a browser parameter and does not change when the email address changes. The service stores a name, email, account ID and creation date. An account's data uses `tenants/<account-id>/...` object keys and its own DynamoDB `TENANT#<account-id>` partition. Local simulation uses the equivalent private folder and metadata namespace.
+The account ID is derived from the verified issuer and stable Google subject ID. It is **not** supplied by a browser parameter and does not change when the email address changes. The service stores a name, email, account ID and creation date. An account's data uses `tenants/<account-id>/...` object keys and its own Table Storage `TENANT#<account-id>` partition. Local simulation uses the equivalent private folder and metadata namespace.
 
-Every authenticated API resolves the workspace from the signed-in principal. Backup, job, restore and report lookups remain in that namespace, including when a user guesses another account's object/job ID. The trusted web and Lambda IAM roles can access tenant namespaces because they serve all accounts; infrastructure operators therefore remain privileged. This is application-enforced tenancy, not a separate AWS account or IAM role for every visitor.
+Every authenticated API resolves the workspace from the signed-in principal. Backup, job, restore and report lookups remain in that namespace, including when a user guesses another account's object/job ID. The trusted web and Functions managed identities can access tenant namespaces because they serve all accounts; infrastructure operators therefore remain privileged. This is application-enforced tenancy, not a separate Azure account or managed identity for every visitor.
 
 The project administrator's password account has a separate `demo` workspace. It is not a dashboard for browsing every user's data.
 
 ## Public service limits
 
-Defaults protect a small project deployment: 100 registered accounts, 30 manual operations per account per hour, 30 retained backup snapshots per workspace, 500 objects and 20 MiB per snapshot. Operators should review capacity, retention, alerting and costs before increasing these limits. New-user capacity is configurable through `MAX_ACCOUNTS`; there is no restriction to specific email addresses. The single-host account-capacity check is a small-deployment limit, not a distributed billing quota.
+Defaults protect a small project deployment: 10 registered accounts in the student deployment, 30 manual operations per account per hour, 240 retained backup snapshots in the student deployment per workspace, 500 objects and 20 MiB per snapshot. Operators should review capacity, retention, alerting and costs before increasing these limits. New-user capacity is configurable through `MAX_ACCOUNTS`; there is no restriction to specific email addresses. The single-host account-capacity check is a small-deployment limit, not a distributed billing quota.
 
-Scheduled jobs fan out to account workspaces through Lambda. The default Lambda concurrency is deliberately small. A large deployment should use a durable queue with per-tenant quotas, pagination, measured capacity and appropriate concurrency instead of treating this academic configuration as unlimited SaaS capacity.
+Scheduled jobs fan out to account workspaces through durable Azure Storage Queues. A large deployment should add distributed per-tenant quotas, pagination, measured capacity and appropriate concurrency instead of treating this academic configuration as unlimited SaaS capacity.
 
-Operator SNS/webhook notifications receive operation results; users view their own results in the app. Signing in with an email address does not automatically subscribe that user to email alerts.
+The operator receives Azure Monitor failure notifications and optional webhook messages; users view their own results in the app. Signing in with an email address does not automatically subscribe that user to email alerts.
 
 ## Verify before publishing
 

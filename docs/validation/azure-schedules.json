@@ -1,0 +1,58 @@
+{
+  "acceptanceTimes": {
+    "backupDueUtc": "2026-11-13T07:35:00+00:00",
+    "testDueUtc": "2026-11-13T07:35:30+00:00"
+  },
+  "jobs": [
+    {
+      "tenantId": null,
+      "id": "20261113T073530000Z-86a6a46e",
+      "type": "TEST",
+      "trigger": "SCHEDULE",
+      "status": "SUCCEEDED",
+      "createdAt": "2026-11-13T07:35:38.753307372Z",
+      "startedAt": "2026-11-13T07:35:38.793147941Z",
+      "finishedAt": "2026-11-13T07:35:39.151560852Z",
+      "backupId": "20261113T073500000Z-c96c3a49",
+      "message": "Restore, checksum and sample application health checks passed",
+      "regionUsed": "centralindia",
+      "cleanupStatus": "CLEANED",
+      "notificationStatus": "AZURE_LOG",
+      "notificationError": null,
+      "rtoMillis": 143,
+      "rpoSeconds": 28,
+      "changedBytes": 0,
+      "changedObjects": 0,
+      "deletedObjects": 0,
+      "verifiedObjects": 3,
+      "restorePrefix": "tests/20261113T073530000Z-86a6a46e/"
+    },
+    {
+      "tenantId": null,
+      "id": "20261113T073500000Z-c96c3a49",
+      "type": "BACKUP",
+      "trigger": "SCHEDULE",
+      "status": "SUCCEEDED",
+      "createdAt": "2026-11-13T07:35:10.401859757Z",
+      "startedAt": "2026-11-13T07:35:10.547229160Z",
+      "finishedAt": "2026-11-13T07:35:12.480983249Z",
+      "backupId": "20261113T073500000Z-c96c3a49",
+      "message": "Snapshot verified in both regions",
+      "regionUsed": null,
+      "cleanupStatus": "NOT_APPLICABLE",
+      "notificationStatus": "AZURE_LOG",
+      "notificationError": null,
+      "rtoMillis": null,
+      "rpoSeconds": null,
+      "changedBytes": null,
+      "changedObjects": null,
+      "deletedObjects": null,
+      "verifiedObjects": 3,
+      "restorePrefix": null
+    }
+  ],
+  "finalScheduleTimezone": "Asia/Kolkata",
+  "dailyBackup": "02:00",
+  "weeklyTest": "Sunday 02:30",
+  "note": "Actual Azure timer invocations used temporary acceptance times; final daily/weekly settings were restored."
+}

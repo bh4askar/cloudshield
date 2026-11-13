@@ -5,23 +5,24 @@
 ```mermaid
 flowchart LR
   A[Administrator browser] -->|HTTPS and session login| W[Spring Boot dashboard]
-  W -->|Create job and query history| D[(DynamoDB metadata)]
-  W -->|Async invoke| L[Java Lambda worker]
-  E[EventBridge Scheduler] -->|Daily backup / weekly test| L
-  S[(Source S3 / application)] -->|Versioned object reads| L
-  L --> P[(Primary S3 backups)]
-  L --> R[(Secondary S3 backups)]
+  W -->|Create job and query history| D[(Table Storage metadata)]
+  W -->|Enqueue JSON| Q[Azure Storage Queue]
+  Q --> L[Java Functions worker]
+  E[Azure timer triggers] -->|Daily backup / weekly test| L
+  S[(Source Blob Storage / application)] -->|Versioned object reads| L
+  L --> P[(Primary Blob Storage backups)]
+  L --> R[(Secondary Blob Storage backups)]
   P --> L
   R -->|Fallback after primary failure| L
-  L --> T[(Isolated recovery S3 prefix)]
+  L --> T[(Isolated recovery Blob Storage prefix)]
   T -->|Read-back validation| L
   L -->|Delete tests in finally| T
   L --> D
-  L --> N[SNS email / optional webhook]
-  L --> C[CloudWatch logs and alarms]
+  L --> N[Azure Monitor email / optional HTTPS webhook]
+  L --> C[Azure Monitor logs and alarms]
 ```
 
-Local mode replaces S3 with four directories, DynamoDB with atomic JSON files and Lambda with a single Java executor. The engine is shared, allowing failure cases to be tested without cloud cost. It does not emulate AWS IAM, service outages, geographical separation, network latency or billing.
+Local mode replaces Blob Storage with four directories, Table Storage with atomic JSON files and Functions with a single Java executor. The engine is shared, allowing failure cases to be tested without cloud cost. It does not emulate Azure role assignments, service outages, geographical separation, network latency or billing.
 
 ## Modules and responsibilities
 
@@ -30,14 +31,14 @@ Local mode replaces S3 with four directories, DynamoDB with atomic JSON files an
 | `BackupEngine` | Job state transitions, capture, copy, restore, validation, metrics and cleanup |
 | `BlobStore` | Object listing, version-aware reads, writes and scoped cleanup |
 | `LocalBlobStore` | Disk object-store simulator, path checks and atomic object replacement |
-| `S3BlobStore` | AWS SDK v2 operations with limits and SSE-S3 writes |
+| `AzureBlobStore` | Bounded Azure blob reads, captured versions and cleanup |
 | `Repository` | Durable backup/job metadata and a worker lease |
-| `DynamoRepository` | Consistent reads, query pagination and conditional lease updates |
-| `Alerts` | SNS and HTTPS webhook delivery; separate notification outcome |
+| `AzureTableRepository` | Table entities, reverse chronological row keys and conditional ETag leases |
+| `Alerts` | Worker log emission and optional HTTPS webhook delivery; separate notification outcome |
 | `RuntimeContext` | Environment-based dependency composition |
-| `JobDispatcher` | Local background execution or asynchronous Lambda invocation |
+| `JobDispatcher` | Local background execution or Azure Queue message dispatch |
 | `SecurityConfig` | Session login, BCrypt password hash, CSRF and response headers |
-| `Handler` | Lambda adapter and deterministic scheduler-event job IDs |
+| `Functions` | Functions adapter and deterministic scheduler-event job IDs |
 
 ## Backup transaction
 
@@ -63,7 +64,7 @@ A replication failure fails the operation and keeps the primary backup visible. 
 7. Record elapsed recovery time and compare the current source to the restored snapshot when reachable.
 8. For a test, delete the isolated prefix in `finally` and verify it is empty. Manual restores remain available for inspection.
 
-If cleanup fails, the job is `FAILED` even if data verification succeeded. A hard Lambda timeout cannot execute `finally`; CloudWatch reports Lambda errors, old interrupted jobs are reconciled by a subsequent worker, and test-prefix lifecycle expiry is a delayed safety net.
+If cleanup fails, the job is `FAILED` even if data verification succeeded. A hard Functions timeout cannot execute `finally`; Azure Monitor reports Functions errors, old interrupted jobs are reconciled by a subsequent worker, and remaining test prefixes must be inspected by the operator.
 
 ## Durable state
 
@@ -78,9 +79,9 @@ stateDiagram-v2
   FAILED --> [*]
 ```
 
-Account workspaces use `pk=TENANT#<id>`. The operator demo and account directory use `pk=CLOUDSHIELD` and sort keys `JOB#<id>`, `BACKUP#<id>` and `LOCK`. Job and backup payloads are JSON. Queries return up to the newest 500 items to bound the teaching dashboard. Retention of metadata beyond that display limit is unchanged.
+Account workspaces use `PartitionKey=TENANT-<id>`. The operator demo and account directory use `PartitionKey=CLOUDSHIELD` and row keys `JOB-<reverse-id>`, `BACKUP-<reverse-id>` and `LOCK`. Job and backup payloads are JSON. Queries return up to the newest 500 items to bound the teaching dashboard. Retention of metadata beyond that display limit is unchanged.
 
-The lock has a 960-second lease, longer than the worker's 900-second Lambda timeout. Conditional writes prevent concurrent ownership. Lambda reserved concurrency is one. Completed jobs are idempotent on asynchronous redelivery. Scheduled IDs derive from event type and scheduled time; manual IDs contain a timestamp and random suffix.
+The lock has a 960-second lease, longer than the worker's 600-second Functions timeout. Conditional writes prevent concurrent ownership. Queue batch size is one per instance; the Table lease serializes each account across instances. Completed jobs are idempotent on asynchronous redelivery. Scheduled IDs derive from event type and scheduled time; manual IDs contain a timestamp and random suffix.
 
 ## Stored object layout
 
@@ -88,12 +89,12 @@ The lock has a 960-second lease, longer than the worker's 900-second Lambda time
 source:    application/{registrations,catalog,settings}.json
 primary:   backups/<id>/manifest.json
            backups/<id>/files/application/<object>
-secondary: same snapshot layout in another AWS region
+secondary: same snapshot layout in another Azure region
 recovery:  tests/<job-id>/application/<object>     # temporary
            restores/<job-id>/application/<object>  # retained
 ```
 
-The recovery bucket is deliberately unversioned: deleting a test object removes its content rather than creating only a delete marker. Source and backup buckets are versioned.
+The recovery account is deliberately unversioned: deleting a test object removes its content rather than creating only a delete marker. Source and backup accounts are versioned.
 
 ## Recovery metric definitions
 
@@ -123,13 +124,13 @@ Let `t_start` be the recovery operation's start and `t_verified` the point at wh
 | GET | `/api/report` | Authenticated JSON download of metadata and evidence |
 | POST | `/logout` | Invalidates the authenticated session; CSRF required |
 
-The liveness endpoint does not prove AWS permissions or bucket health. A backup followed by a restore test is the end-to-end readiness check.
+The liveness endpoint does not prove Azure permissions or bucket health. A backup followed by a restore test is the end-to-end readiness check.
 
 ## Security and operating boundaries
 
-The dashboard supports a password administrator and public Google account creation with private workspaces. It uses server-side sessions, BCrypt for the password account, HTTP-only SameSite cookies, CSRF protection, CSP and clickjacking protection. It binds to loopback by default. The production reverse proxy terminates HTTPS and enables secure cookies. Environment variables contain configuration; IAM roles or SSO provide AWS credentials.
+The dashboard supports a password administrator and public Google account creation with private workspaces. It uses server-side sessions, BCrypt for the password account, HTTP-only SameSite cookies, CSRF protection, CSP and clickjacking protection. It binds to loopback by default. The production reverse proxy terminates HTTPS and enables secure cookies. Environment variables contain configuration; managed identities or Azure CLI sign-in provide Azure credentials.
 
-The worker reads and initializes source application prefixes, writes backup prefixes, deletes only recovery prefixes, accesses the application metadata partitions, and publishes to its alert topic. Per-account data is prefixed by tenants/<id>/; the server derives the ID from the verified Google subject. The dashboard receives a smaller policy for metadata, invocation and viewing sample data. Terraform deployment itself requires broader provisioning permissions.
+The worker reads and initializes source application prefixes, writes backup prefixes, deletes only recovery prefixes, accesses the application metadata partitions, and writes operational logs. Per-account data is prefixed by tenants/<id>/; the server derives the ID from the verified Google subject. The local operator has project data roles; a future hosted dashboard should have a separate scoped identity. ARM deployment itself requires broader provisioning permissions.
 
 Checksums detect corruption relative to their manifest. They are not proof against an attacker who can replace both data and metadata. This is a bounded academic reference implementation, not a certified backup product or an availability guarantee.
 

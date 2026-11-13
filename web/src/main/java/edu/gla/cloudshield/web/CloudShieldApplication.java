@@ -16,7 +16,7 @@ public class CloudShieldApplication {
   @Bean
   RuntimeContext runtime() {
     RuntimeContext runtime = RuntimeContext.create(Config.fromEnv());
-    if (!runtime.config().aws()) SampleData.seed(runtime.source());
+    if (!runtime.config().azure()) SampleData.seed(runtime.source());
     return runtime;
   }
 }

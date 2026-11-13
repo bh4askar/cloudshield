@@ -1,63 +1,40 @@
-# Verification evidence
+# Validation — Azure migration
 
-Verified on **12 November 2026**, Windows x64. This is local execution and configuration evidence; no AWS resources were deployed.
+Verified on 13 November 2026. The evidence below distinguishes local tests, direct Azure adapter tests and the full deployed-worker path.
 
 | Check | Result |
 |---|---|
-| Java build and tests | PASS: 37 tests, no failures/errors/skips |
-| Core backup engine | 22 tests |
-| Tenant storage/recovery isolation | 3 tests |
-| Concurrent metadata polling and updates | 1 regression test |
-| Google identity/account chooser | 4 tests |
-| Session/API/CSRF/security integration | 6 tests |
-| Tenant API access | 1 test |
-| Local HTTP workflow | PASS: 16 checks in `validation/local-smoke.json` |
-| Real Google sign-in | PASS: account chooser, consent, callback, private workspace and first backup |
-| Google-account recovery test | PASS: restored/verified objects and cleaned temporary data |
-| Sign-out | PASS: returned to login |
-| Google audience | External / In production |
-| Public information pages | Published on Google Sites |
-| Terraform | Configuration validation passed; official AWS provider 5.100.0 |
-| AWS deployment / public HTTPS app | Not performed |
-| Second real Google account | Not tested; automated tests exercise tenant isolation |
+| Java unit/integration suite without live cloud tests | 41 passed; 4 opt-in Azure tests skipped |
+| Direct real-Azure adapter suite | 4 passed |
+| Dashboard → Table/Queue → deployed Function → Blob Storage HTTP workflow | 16 checks passed |
+| Function package | Four triggers and required Azure dependencies verified |
+| Azure infrastructure | ARM validation and deployment succeeded |
+| Source/primary and secondary regions | Central India and Korea Central |
+| Public application hosting | Deferred by the project owner |
 
-## Reproduce locally
+The four real-Azure contract tests check backup/restore and fallback after corrupting a disposable primary object, immutable captured source-version reads, tenant isolation and newest-first metadata, and concurrent conditional locking with rejection of wrong-owner release. They use random synthetic workspaces, not the owner's existing application data.
 
-On a normal JDK 21 and Maven 3.9+ installation:
+The HTTP suite checks anonymous access, login/session cookies, CSRF protection, queue dispatch, verified backup copies, restore-test cleanup, source mutation, retained restore and preservation of the live source. It uses the administrator's synthetic sample workspace. See `validation/azure-http.json` for observations and durations. Small-sample timings are not throughput benchmarks.
+
+Reproduce local checks with `mvn clean verify`. Run direct Azure tests after setting the environment from the setup guide:
+
+```powershell
+$env:CLOUDSHIELD_AZURE_TESTS='true'
+mvn -pl core -Dtest=AzureIntegrationTest test
+```
+
+With a running dashboard and a strong administrator password in the environment:
 
 ```bash
-mvn clean verify
-java -jar web/target/cloudshield-web-1.0.0.jar
-python scripts/smoke-test.py --output docs/validation/local-smoke.json
+python scripts/smoke-test.py --mode azure --url http://127.0.0.1:8080 --output docs/validation/azure-http.json
 ```
 
-The smoke script targets a running LOCAL server and creates synthetic source changes, backups and restores in the administrator demonstration workspace. Do not run repeatedly on data you need to keep unchanged. Google browser testing uses a separate account workspace.
+In the restricted Windows authoring environment the build used the existing Eclipse compiler profile with `-Dmaven.compiler.release= -Dmaven.compiler.source=21 -Dmaven.compiler.target=21 -Djunit.jupiter.tempdir.cleanup.mode.default=NEVER`. A normal JDK checkout uses the standard build command. Private token caches, OAuth credentials, logs containing account details and local settings are excluded from the archives and repository.
 
-On the Windows test environment, javac ZIP canonicalization required the optional Eclipse compiler profile:
+Google sign-in was tested again on 13 November 2026 against the Azure-backed dashboard. The owner's account created a private Azure workspace, completed a two-region backup and passed a recovery test with cleanup. A cloud-provider migration does not itself prove an OAuth callback on a new public hostname. Full regional outage, automatic control-plane failover, a second live Google identity, and guaranteed year-long credit coverage are outside these tests. Azure Monitor alert configuration does not prove mailbox delivery; verify the recipient's inbox separately.
 
-```text
-mvn -Peclipse-compiler -Dmaven.compiler.release= -Dmaven.compiler.source=21 -Dmaven.compiler.target=21 -Djunit.jupiter.tempdir.cleanup.mode.default=NEVER verify
-```
+## Final timer and independent recovery evidence
 
-JUnit's automatic temporary-directory cleanup was disabled because of that environment's filesystem restrictions. Engine cleanup assertions and HTTP cleanup checks still ran and passed. Maven 3.9.9 and Microsoft OpenJDK 21.0.13.0.2 were used. The dependency/uber-JAR build emitted duplicate-resource warnings; the build and runtime checks completed successfully.
+Both Azure timer functions fired at temporary acceptance times on 13 November 2026. Their resulting backup and recovery jobs succeeded with correct occurrence-based IDs. The recovery test cleaned its temporary objects. See `validation/azure-schedules.json`. The final settings are enabled: daily backup at 02:00 IST, and weekly recovery test on Sunday at 02:30 IST.
 
-Terraform validation used the official AWS 5.100.0 provider ZIP with its SHA-256 checked against the vendor checksum list. The execution environment needed a temporary `dev_overrides` path, so Terraform printed an override warning. A normal deployment should use `terraform init` and the released provider configuration, then inspect its actual plan before applying.
-
-## Bugs fixed and exercised
-
-- Missing profile elements previously interrupted dashboard rendering. The HTML IDs and guarded updates now match.
-- Windows JSON replacement could race with API polling. Reads/writes now share locks, including cached tenant repositories. The concurrent regression and HTTP workflow pass.
-- Google callback lost its saved authorization request with SameSite=Strict cookies. SameSite=Lax preserves the top-level callback session. A real Google authorization-code exchange succeeded, and the smoke suite checks Lax/HTTP-only cookie attributes.
-- Unexpected background exceptions now result in visible failed jobs and diagnostic logging instead of silently swallowed futures.
-
-## Google and public pages
-
-Homepage: https://sites.google.com/view/cloudshield-g360/home
-
-Privacy: https://sites.google.com/view/cloudshield-g360/privacy-policy
-
-Both local callback hostnames (`localhost` and `127.0.0.1`, port 8080) are registered. No Gmail/mail scopes, Google billing or free-trial activation were used. The public information site is separate from the still-local Java application. Credentials remain in the private `.env.local` and are excluded from shared distributions.
-
-Browser screenshots are retained locally and excluded from Git because they contain account information. The JSON results in `validation/` record the automated checks. The synthetic HTTP run's measured durations are examples for this small local workload, not performance guarantees.
-
-Before final cloud submission, complete the live AWS and HTTPS acceptance checklist in `AWS_DEPLOYMENT.md`, test a second independent Google account and record the deployment-specific results.
+The independent Python recovery command downloaded and verified three objects (787 bytes) using only the Korea Central account and a trusted manifest digest from an exported report. It wrote a new local recovery directory and did not contact the primary metadata service. This confirms the data-recovery command, not automatic application failover.

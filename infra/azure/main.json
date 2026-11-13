@@ -1,0 +1,736 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "primaryRegion": {
+      "type": "string",
+      "defaultValue": "centralindia"
+    },
+    "secondaryRegion": {
+      "type": "string",
+      "defaultValue": "koreacentral"
+    },
+    "operatorObjectId": {
+      "type": "string"
+    },
+    "budgetEmail": {
+      "type": "string"
+    },
+    "budgetStartDate": {
+      "type": "string",
+      "defaultValue": "2026-11-01T00:00:00Z"
+    },
+    "enableSchedules": {
+      "type": "bool",
+      "defaultValue": false
+    }
+  },
+  "variables": {
+    "suffix": "[uniqueString(resourceGroup().id)]",
+    "primary": "[concat('csg360p', variables('suffix'))]",
+    "secondary": "[concat('csg360s', variables('suffix'))]",
+    "recovery": "[concat('csg360r', variables('suffix'))]",
+    "function": "[concat('cloudshield-',variables('suffix'))]",
+    "plan": "[concat('cloudshield-flex-',variables('suffix'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('primary')]",
+      "properties": {
+        "supportsHttpsTrafficOnly": true,
+        "minimumTlsVersion": "TLS1_2",
+        "allowBlobPublicAccess": false,
+        "allowSharedKeyAccess": false,
+        "publicNetworkAccess": "Enabled",
+        "defaultToOAuthAuthentication": true
+      },
+      "location": "[parameters('primaryRegion')]",
+      "kind": "StorageV2",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "tags": {
+        "project": "CloudShield"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(variables('primary'), '/default')]",
+      "properties": {
+        "isVersioningEnabled": true,
+        "deleteRetentionPolicy": {
+          "enabled": true,
+          "days": 7
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('primary'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(variables('primary'), '/default/source')]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('primary'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(variables('primary'), '/default/backups')]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('primary'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/managementPolicies",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(variables('primary'), '/default')]",
+      "properties": {
+        "policy": {
+          "rules": [
+            {
+              "enabled": true,
+              "name": "ExpireSupersededVersions",
+              "type": "Lifecycle",
+              "definition": {
+                "filters": {
+                  "blobTypes": [
+                    "blockBlob"
+                  ]
+                },
+                "actions": {
+                  "version": {
+                    "delete": {
+                      "daysAfterCreationGreaterThan": 7
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('primary'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('secondary')]",
+      "properties": {
+        "supportsHttpsTrafficOnly": true,
+        "minimumTlsVersion": "TLS1_2",
+        "allowBlobPublicAccess": false,
+        "allowSharedKeyAccess": false,
+        "publicNetworkAccess": "Enabled",
+        "defaultToOAuthAuthentication": true
+      },
+      "location": "[parameters('secondaryRegion')]",
+      "kind": "StorageV2",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "tags": {
+        "project": "CloudShield"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(variables('secondary'), '/default')]",
+      "properties": {
+        "isVersioningEnabled": true,
+        "deleteRetentionPolicy": {
+          "enabled": true,
+          "days": 7
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('secondary'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(variables('secondary'), '/default/backups')]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('secondary'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/managementPolicies",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(variables('secondary'), '/default')]",
+      "properties": {
+        "policy": {
+          "rules": [
+            {
+              "enabled": true,
+              "name": "ExpireSupersededVersions",
+              "type": "Lifecycle",
+              "definition": {
+                "filters": {
+                  "blobTypes": [
+                    "blockBlob"
+                  ]
+                },
+                "actions": {
+                  "version": {
+                    "delete": {
+                      "daysAfterCreationGreaterThan": 7
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('secondary'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('recovery')]",
+      "properties": {
+        "supportsHttpsTrafficOnly": true,
+        "minimumTlsVersion": "TLS1_2",
+        "allowBlobPublicAccess": false,
+        "allowSharedKeyAccess": false,
+        "publicNetworkAccess": "Enabled",
+        "defaultToOAuthAuthentication": true
+      },
+      "location": "[parameters('primaryRegion')]",
+      "kind": "StorageV2",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "tags": {
+        "project": "CloudShield"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(variables('recovery'), '/default')]",
+      "properties": {
+        "isVersioningEnabled": false,
+        "deleteRetentionPolicy": {
+          "enabled": false
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('recovery'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(variables('recovery'), '/default/recovery')]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('recovery'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(variables('recovery'), '/default/deployment')]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('recovery'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/tableServices/tables",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(variables('primary'), '/default/cloudshield')]",
+      "properties": {},
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('primary'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/queueServices/queues",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(variables('recovery'), '/default/cloudshield-jobs')]",
+      "properties": {},
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('recovery'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/queueServices/queues",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(variables('recovery'), '/default/cloudshield-jobs-poison')]",
+      "properties": {},
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('recovery'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2024-04-01",
+      "name": "[variables('plan')]",
+      "properties": {
+        "reserved": true
+      },
+      "location": "[parameters('primaryRegion')]",
+      "kind": "functionapp",
+      "sku": {
+        "name": "FC1",
+        "tier": "FlexConsumption"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2024-04-01",
+      "name": "[variables('function')]",
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('plan'))]",
+        "httpsOnly": true,
+        "siteConfig": {
+          "minTlsVersion": "1.2",
+          "ftpsState": "Disabled",
+          "appSettings": [
+            {
+              "name": "CLOUDSHIELD_MODE",
+              "value": "azure"
+            },
+            {
+              "name": "AZURE_PRIMARY_REGION",
+              "value": "[parameters('primaryRegion')]"
+            },
+            {
+              "name": "AZURE_SECONDARY_REGION",
+              "value": "[parameters('secondaryRegion')]"
+            },
+            {
+              "name": "AZURE_PRIMARY_ACCOUNT",
+              "value": "[variables('primary')]"
+            },
+            {
+              "name": "AZURE_SECONDARY_ACCOUNT",
+              "value": "[variables('secondary')]"
+            },
+            {
+              "name": "AZURE_RECOVERY_ACCOUNT",
+              "value": "[variables('recovery')]"
+            },
+            {
+              "name": "SOURCE_CONTAINER",
+              "value": "source"
+            },
+            {
+              "name": "PRIMARY_CONTAINER",
+              "value": "backups"
+            },
+            {
+              "name": "SECONDARY_CONTAINER",
+              "value": "backups"
+            },
+            {
+              "name": "RECOVERY_CONTAINER",
+              "value": "recovery"
+            },
+            {
+              "name": "STATE_TABLE",
+              "value": "cloudshield"
+            },
+            {
+              "name": "JOB_QUEUE",
+              "value": "cloudshield-jobs"
+            },
+            {
+              "name": "AzureWebJobsStorage__accountName",
+              "value": "[variables('recovery')]"
+            },
+            {
+              "name": "AzureWebJobsStorage__credential",
+              "value": "managedidentity"
+            },
+            {
+              "name": "JobStorage__queueServiceUri",
+              "value": "[concat('https://', variables('recovery'), '.queue.core.windows.net')]"
+            },
+            {
+              "name": "JobStorage__credential",
+              "value": "managedidentity"
+            },
+            {
+              "name": "BACKUP_SCHEDULE",
+              "value": "0 30 20 * * *"
+            },
+            {
+              "name": "TEST_SCHEDULE",
+              "value": "0 0 21 * * 6"
+            },
+            {
+              "name": "MAX_BYTES",
+              "value": "20971520"
+            },
+            {
+              "name": "MAX_OBJECTS",
+              "value": "500"
+            },
+            {
+              "name": "MAX_ACCOUNTS",
+              "value": "10"
+            },
+            {
+              "name": "MAX_BACKUPS_PER_ACCOUNT",
+              "value": "240"
+            },
+            {
+              "name": "AzureWebJobs.DailyBackup.Disabled",
+              "value": "[if(parameters('enableSchedules'), 'false', 'true')]"
+            },
+            {
+              "name": "AzureWebJobs.WeeklyRecoveryTest.Disabled",
+              "value": "[if(parameters('enableSchedules'), 'false', 'true')]"
+            },
+            {
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "[reference(resourceId('Microsoft.Insights/components',concat('cloudshield-insights-',variables('suffix'))),'2020-02-02').ConnectionString]"
+            }
+          ]
+        },
+        "functionAppConfig": {
+          "runtime": {
+            "name": "java",
+            "version": "21"
+          },
+          "scaleAndConcurrency": {
+            "maximumInstanceCount": 40,
+            "instanceMemoryMB": 2048
+          },
+          "deployment": {
+            "storage": {
+              "type": "blobContainer",
+              "value": "[concat('https://',variables('recovery'),'.blob.core.windows.net/deployment')]",
+              "authentication": {
+                "type": "SystemAssignedIdentity"
+              }
+            }
+          }
+        }
+      },
+      "location": "[parameters('primaryRegion')]",
+      "kind": "functionapp,linux",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('plan'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('recovery'))]",
+        "[resourceId('Microsoft.Insights/components',concat('cloudshield-insights-',variables('suffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts',variables('primary')), 'blob-worker', parameters('operatorObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions','ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites',variables('function')),'2024-04-01','Full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('primary'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('function'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('primary'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts',variables('primary')), 'blob-operator', parameters('operatorObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions','ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+        "principalId": "[parameters('operatorObjectId')]",
+        "principalType": "User"
+      },
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('primary'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('function'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('primary'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts',variables('primary')), 'table-worker', parameters('operatorObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions','0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites',variables('function')),'2024-04-01','Full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('primary'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('function'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('primary'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts',variables('primary')), 'table-operator', parameters('operatorObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions','0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')]",
+        "principalId": "[parameters('operatorObjectId')]",
+        "principalType": "User"
+      },
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('primary'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('function'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('primary'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts',variables('secondary')), 'blob-worker', parameters('operatorObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions','ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites',variables('function')),'2024-04-01','Full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('secondary'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('function'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('secondary'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts',variables('secondary')), 'blob-operator', parameters('operatorObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions','ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+        "principalId": "[parameters('operatorObjectId')]",
+        "principalType": "User"
+      },
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('secondary'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('function'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('secondary'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts',variables('recovery')), 'owner-worker', parameters('operatorObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions','b7e6dc6d-f1e8-4753-8033-0f276bb0955b')]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites',variables('function')),'2024-04-01','Full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('recovery'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('function'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('recovery'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts',variables('recovery')), 'owner-operator', parameters('operatorObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions','b7e6dc6d-f1e8-4753-8033-0f276bb0955b')]",
+        "principalId": "[parameters('operatorObjectId')]",
+        "principalType": "User"
+      },
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('recovery'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('function'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('recovery'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts',variables('recovery')), 'queue-worker', parameters('operatorObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions','974c5e8b-45b9-4653-ba55-5f855dd0fb88')]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites',variables('function')),'2024-04-01','Full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('recovery'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('function'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('recovery'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts',variables('recovery')), 'queue-operator', parameters('operatorObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions','974c5e8b-45b9-4653-ba55-5f855dd0fb88')]",
+        "principalId": "[parameters('operatorObjectId')]",
+        "principalType": "User"
+      },
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('recovery'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('function'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('recovery'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Consumption/budgets",
+      "apiVersion": "2023-11-01",
+      "name": "cloudshield-monthly",
+      "properties": {
+        "category": "Cost",
+        "amount": 5,
+        "timeGrain": "Monthly",
+        "timePeriod": {
+          "startDate": "[parameters('budgetStartDate')]",
+          "endDate": "2027-11-30T00:00:00Z"
+        },
+        "notifications": {
+          "Actual80Percent": {
+            "enabled": true,
+            "operator": "GreaterThan",
+            "threshold": 80,
+            "thresholdType": "Actual",
+            "contactEmails": [
+              "[parameters('budgetEmail')]"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2023-09-01",
+      "name": "[concat('cloudshield-logs-',variables('suffix'))]",
+      "location": "[parameters('primaryRegion')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 30,
+        "workspaceCapping": {
+          "dailyQuotaGb": 0.1
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[concat('cloudshield-insights-',variables('suffix'))]",
+      "location": "[parameters('primaryRegion')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces',concat('cloudshield-logs-',variables('suffix')))]",
+        "IngestionMode": "LogAnalytics",
+        "SamplingPercentage": 100
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces',concat('cloudshield-logs-',variables('suffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/actionGroups",
+      "apiVersion": "2023-01-01",
+      "name": "cloudshield-operator",
+      "location": "global",
+      "properties": {
+        "groupShortName": "CSG360",
+        "enabled": true,
+        "emailReceivers": [
+          {
+            "name": "ProjectOwner",
+            "emailAddress": "[parameters('budgetEmail')]",
+            "useCommonAlertSchema": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2023-12-01",
+      "name": "cloudshield-worker-failure",
+      "location": "[parameters('primaryRegion')]",
+      "kind": "LogAlert",
+      "properties": {
+        "displayName": "CloudShield worker failure",
+        "description": "A backup/recovery job failed or the Azure worker raised an exception.",
+        "severity": 2,
+        "enabled": true,
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "scopes": [
+          "[resourceId('Microsoft.OperationalInsights/workspaces',concat('cloudshield-logs-',variables('suffix')))]"
+        ],
+        "criteria": {
+          "allOf": [
+            {
+              "query": "union isfuzzy=true AppTraces, AppExceptions\n| where (Message has \"CloudShield\" and (Message has \"FAILED\" or Message has \"poison\")) or isnotempty(OuterMessage)",
+              "timeAggregation": "Count",
+              "operator": "GreaterThan",
+              "threshold": 0,
+              "failingPeriods": {
+                "numberOfEvaluationPeriods": 1,
+                "minFailingPeriodsToAlert": 1
+              }
+            }
+          ]
+        },
+        "actions": {
+          "actionGroups": [
+            "[resourceId('Microsoft.Insights/actionGroups','cloudshield-operator')]"
+          ]
+        },
+        "autoMitigate": true,
+        "skipQueryValidation": true
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces',concat('cloudshield-logs-',variables('suffix')))]",
+        "[resourceId('Microsoft.Insights/components',concat('cloudshield-insights-',variables('suffix')))]",
+        "[resourceId('Microsoft.Insights/actionGroups','cloudshield-operator')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "primary": {
+      "type": "string",
+      "value": "[variables('primary')]"
+    },
+    "secondary": {
+      "type": "string",
+      "value": "[variables('secondary')]"
+    },
+    "recovery": {
+      "type": "string",
+      "value": "[variables('recovery')]"
+    },
+    "function": {
+      "type": "string",
+      "value": "[variables('function')]"
+    }
+  }
+}

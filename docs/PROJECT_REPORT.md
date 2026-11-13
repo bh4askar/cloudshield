@@ -1,6 +1,6 @@
 # CLOUDSHIELD: AUTOMATED CLOUD BACKUP AND RECOVERY SYSTEM
 
-**Implementation report · Version 1.0 · 12 November 2026**
+**Implementation report · Version 1.0 · 13 November 2026**
 
 GLA University, Mathura
 
@@ -20,17 +20,17 @@ Mentor: **Chitranjan Prasad Sah, Assistant Professor**
 | Yash Pratap Singh Bhadauriya | W-68 | 2315002540 |
 | Abhishek Upadhyay | Not specified in synopsis | 2315000079 |
 
-This report describes the implemented application and its observed results. The group should add its actual AWS deployment evidence, institution-required certificate/declaration pages and mentor-approved formatting before submission. No signatures or cloud results are implied.
+This report describes the implemented application and its observed results. The group should add its actual Azure deployment evidence, institution-required certificate/declaration pages and mentor-approved formatting before submission. No institution signatures or approvals are implied. Live results are recorded in VALIDATION.md.
 
 ## Abstract
 
-CloudShield demonstrates automated backup and recovery for a bounded cloud-object application. A Java engine captures timestamped snapshots, records SHA-256 integrity manifests, verifies a second-region copy and performs isolated restore tests. The dashboard exposes recovery time, backup age, changed-object metrics, cleanup outcomes and operational history. Google OpenID Connect creates separate account workspaces. A local adapter permits repeatable classroom demonstrations; the AWS adapter uses S3, DynamoDB, Lambda, EventBridge Scheduler, SNS and CloudWatch. Both adapters use the same backup and recovery logic. Local tests and a live Google sign-in have been completed. The AWS infrastructure configuration has been validated but has not been deployed.
+CloudShield demonstrates automated backup and recovery for a bounded cloud-object application. A Java engine captures timestamped snapshots, records SHA-256 integrity manifests, verifies a second-region copy and performs isolated restore tests. The dashboard exposes recovery time, backup age, changed-object metrics, cleanup outcomes and operational history. Google OpenID Connect creates separate account workspaces. A local adapter permits repeatable classroom demonstrations; the Azure adapter uses Blob Storage, Table Storage, Functions, Azure timer triggers, Azure Monitor failure notifications and Azure Monitor. Both adapters use the same backup and recovery logic. Local tests and a live Google sign-in have been completed. The Azure infrastructure and Java worker are deployed. Four direct Azure integration tests and sixteen HTTP workflow checks passed on 13 November 2026.
 
 ## 1. Problem and objectives
 
 Creating a backup alone does not demonstrate that the application can be recovered. A copy may be incomplete, corrupt, inaccessible or too old for the required recovery point. Manual recovery exercises are also easy to omit, and temporary test data may remain after a failure.
 
-CloudShield addresses these concerns through repeatable backup, verification and reporting. The objectives are to capture identifiable recovery points; retain verified copies in separate AWS regions when deployed; exercise recovery automatically; measure the restore result; clean temporary restore data; and present evidence through a secure web interface. The implemented workload is a synthetic Campus Register application represented by JSON objects, rather than an arbitrary database or virtual machine.
+CloudShield addresses these concerns through repeatable backup, verification and reporting. The objectives are to capture identifiable recovery points; retain verified copies in separate Azure regions when deployed; exercise recovery automatically; measure the restore result; clean temporary restore data; and present evidence through a secure web interface. The implemented workload is a synthetic Campus Register application represented by JSON objects, rather than an arbitrary database or virtual machine.
 
 ## 2. Scope and requirements
 
@@ -39,15 +39,15 @@ CloudShield addresses these concerns through repeatable backup, verification and
 | Java web application | Java 21, Spring Boot 3.5.7, Spring Security and HTML/CSS/JavaScript |
 | Daily backup | 02:00 Asia/Kolkata schedule; manual dashboard action |
 | Timestamped snapshots | Unique timestamp/UUID backup IDs and manifests |
-| Second-region protection | Worker copies and verifies backup objects in a second S3 region |
+| Second-region protection | Worker copies and verifies backup objects in a second Blob Storage region |
 | Weekly recovery verification | Sunday 02:30 Asia/Kolkata; manual test action |
 | Recovery measurements | Restore/verification time, backup age and changed/deleted objects |
 | Test cleanup | Immediate cleanup in the engine with verification and delayed safety nets |
-| Operational alerts | Local event log or AWS SNS; optional HTTPS webhook |
+| Operational alerts | Local event log or Azure Azure Monitor failure notifications; optional HTTPS webhook |
 | Public accounts | Google sign-in with private tenant storage and metadata |
-| Deployment material | Terraform, Docker, HTTPS reverse proxy, environment examples and runbooks |
+| Deployment material | ARM, Docker, HTTPS reverse proxy, environment examples and runbooks |
 
-Local mode stores the two regional copies in different folders on one computer. It exercises behavior but provides no geographical redundancy. AWS mode is required to demonstrate actual two-region storage.
+Local mode stores the two regional copies in different folders on one computer. It exercises behavior but provides no geographical redundancy. Azure mode is required to demonstrate actual two-region storage.
 
 ## 3. Architecture
 
@@ -55,19 +55,19 @@ Local mode stores the two regional copies in different folders on one computer. 
 flowchart LR
   Browser[Dashboard and Google sign-in] --> Web[Spring Boot web API]
   Web --> Engine[Shared Java backup engine]
-  Schedule[EventBridge Scheduler] --> Worker[Java Lambda worker]
+  Schedule[Azure timer triggers] --> Worker[Java Functions worker]
   Worker --> Engine
-  Engine --> Source[Source S3 bucket]
+  Engine --> Source[Source Blob Storage bucket]
   Engine --> Primary[Primary backup bucket]
   Engine --> Secondary[Secondary-region backup bucket]
   Engine --> Recovery[Recovery and test bucket]
-  Engine --> Metadata[DynamoDB jobs and accounts]
-  Engine --> Alerts[SNS and operational logs]
+  Engine --> Metadata[Table Storage jobs and accounts]
+  Engine --> Alerts[Azure Monitor failure notifications and operational logs]
 ```
 
-The Maven `core` module defines the storage/repository interfaces, backup engine, integrity validation, sample workload and metrics. The `web` module provides authentication, account onboarding, APIs, schedules for local execution and the dashboard. The `worker` module packages the engine for AWS Lambda. The `infra` directory provisions cloud resources and their policies.
+The Maven `core` module defines the storage/repository interfaces, backup engine, integrity validation, sample workload and metrics. The `web` module provides authentication, account onboarding, APIs, schedules for local execution and the dashboard. The `worker` module packages the engine for Azure Functions. The `infra` directory provisions cloud resources and their policies.
 
-Local implementations replace S3 with bounded directories and DynamoDB with JSON metadata. Synchronized reads and replacements prevent Windows metadata-file races when API polling and the worker run concurrently. A cached repository per tenant ensures both use the same synchronization scope.
+Local implementations replace Blob Storage with bounded directories and Table Storage with JSON metadata. Synchronized reads and replacements prevent Windows metadata-file races when API polling and the worker run concurrently. A cached repository per tenant ensures both use the same synchronization scope.
 
 See `ARCHITECTURE.md` for the API and data model details.
 
@@ -82,7 +82,7 @@ See `ARCHITECTURE.md` for the API and data model details.
 5. Store a versioned manifest describing keys, sizes and digests.
 6. Copy and verify the snapshot in the secondary region, then persist the result and alert status.
 
-AWS source reads use captured object version IDs. This avoids reading a newer version of an individual object after enumeration, but it is not an atomic multi-object database snapshot. Applications requiring transactional consistency must quiesce writes or use a database-aware capture mechanism.
+Azure source reads use captured object version IDs. This avoids reading a newer version of an individual object after enumeration, but it is not an atomic multi-object database snapshot. Applications requiring transactional consistency must quiesce writes or use a database-aware capture mechanism.
 
 ### Restore test
 
@@ -103,15 +103,15 @@ A manual restore uses an isolated retained recovery prefix. The dashboard can op
 | Deleted objects | Objects present in the backup but absent from the live source |
 | Cleanup result | Whether temporary objects were removed and the prefix was checked |
 
-Small local JSON workloads recover in milliseconds. Such measurements must not be presented as AWS throughput benchmarks or as results for large production data.
+Small local JSON workloads recover in milliseconds. Such measurements must not be presented as Azure throughput benchmarks or as results for large production data.
 
 ## 6. Identity and security
 
 Google authorization uses only `openid`, `profile` and `email`. No Gmail inbox or Drive permission is requested. Spring Security performs the authorization-code/OIDC flow and signed-token validation; application checks require the expected issuer and a verified email. Each workspace ID derives from the issuer and stable Google subject, not an editable email or browser-supplied tenant ID.
 
-An account's objects live under `tenants/<id>/` and its metadata in a separate DynamoDB partition or local namespace. Every authenticated API resolves this scope from its principal. The password administrator has its own demonstration workspace. Infrastructure operators retain administrative access to their deployment.
+An account's objects live under `tenants/<id>/` and its metadata in a separate Table Storage partition or local namespace. Every authenticated API resolves this scope from its principal. The password administrator has its own demonstration workspace. Infrastructure operators retain administrative access to their deployment.
 
-Sessions use HTTP-only, SameSite=Lax cookies. Lax allows Google's top-level callback to preserve the login state; CSRF tokens still protect mutations. Production HTTPS enables Secure cookies. Other controls include BCrypt for the password account, CSP, clickjacking protection, loopback binding by default, private buckets, encryption, TLS-only bucket policies, scoped IAM roles and bounded jobs. The bundled runtime contains modern TLS support. Credentials are never placed in browser JavaScript or the shared ZIPs.
+Sessions use HTTP-only, SameSite=Lax cookies. Lax allows Google's top-level callback to preserve the login state; CSRF tokens still protect mutations. Production HTTPS enables Secure cookies. Other controls include BCrypt for the password account, CSP, clickjacking protection, loopback binding by default, private containers, encryption, TLS-only storage settings, scoped managed identities and bounded jobs. The bundled runtime contains modern TLS support. Credentials are never placed in browser JavaScript or the shared ZIPs.
 
 ## 7. Interface
 
@@ -121,11 +121,11 @@ The Google account chooser appears when starting a new sign-in. Existing Google 
 
 ## 8. Validation and observed results
 
-The final Java suite passed **37 tests**, including backup corruption/fallback, cleanup, capacity boundaries, tenant isolation, API security, Google identity checks and simultaneous metadata reads/writes. The local HTTP smoke suite passed **16 checks**, including the OAuth-compatible session cookie, backup replication, recovery verification, changed data, retained restore and source preservation.
+The final Java suite passed **41 tests**, with an additional four opt-in tests against real Azure storage, including backup corruption/fallback, cleanup, capacity boundaries, tenant isolation, API security, Google identity checks and simultaneous metadata reads/writes. The local HTTP smoke suite passed **16 checks**, including the OAuth-compatible session cookie, backup replication, recovery verification, changed data, retained restore and source preservation.
 
-A real Google sign-in on 12 November 2026 selected the owner's account, returned successfully to the dashboard, created a private workspace and an initial backup. A recovery test in that account succeeded with temporary objects cleaned. Sign-out returned to the login page. A second live Google account and a public HTTPS dashboard have not been tested. Automated tenant tests cover two distinct test identities.
+Real Google sign-ins on 12 and 13 November 2026 selected the owner's account, returned successfully to the dashboard, created a private workspace and an initial backup. A recovery test in that account succeeded with temporary objects cleaned. Sign-out returned to the login page. A second live Google account and a public HTTPS dashboard have not been tested. Automated tenant tests cover two distinct test identities.
 
-The Google OAuth audience is External / In production. The free homepage and privacy policy are published on Google Sites. Google billing and its free trial were not activated. Terraform validation passed with a locally supplied official provider; no AWS apply or live disaster-recovery exercise was performed.
+The Google OAuth audience is External / In production. The free homepage and privacy policy are published on Google Sites. Google billing and its free trial were not activated. The Azure ARM deployment completed successfully. Cloud tests exercised two-region storage and a deliberately corrupted disposable primary copy; they did not simulate a regional outage.
 
 Exact evidence and reproduction commands are in `VALIDATION.md` and `docs/validation/`.
 
@@ -133,20 +133,20 @@ Exact evidence and reproduction commands are in `VALIDATION.md` and `docs/valida
 
 The full Windows package includes compiled JARs and a private Java 21 runtime. `Start-CloudShield.cmd` starts local mode. A source checkout requires JDK 21 and a Maven build. Google login requires OAuth credentials configured separately for each installation; credentials are excluded from Git and shareable archives.
 
-For AWS, build the worker, review/apply Terraform using an authorized AWS account, confirm the SNS subscription, load the generated settings and run the dashboard on an HTTPS host. Register that exact host's Google callback. A permanent dashboard host is separate from the Google Sites information pages. AWS resources and hosting may incur charges. Follow `AWS_DEPLOYMENT.md` for acceptance, monitoring, recovery and controlled teardown.
+For Azure, build the worker, review/apply ARM using an authorized Azure account, verify the Azure Monitor notification recipient, load the generated settings and run the dashboard on an HTTPS host. Register that exact host's Google callback. A permanent dashboard host is separate from the Google Sites information pages. Azure resources and hosting may incur charges. Follow `AZURE_SETUP.md` for acceptance, monitoring, recovery and controlled teardown.
 
 ## 10. Limitations and future work
 
-The current configuration protects a small sample application: defaults permit 100 accounts, 30 manual operations per account per hour, 30 snapshots per workspace, 500 objects and 20 MiB per capture. Retention management is an operator responsibility. The primary-region control plane is not automatically failed over. Object Lock, customer-managed KMS keys, transactional database backups, signed manifest trust roots, durable per-tenant queues, automated retention and broader deployment tests are future extensions.
+The current configuration protects a small sample application: defaults permit 10 accounts, 30 manual operations per account per hour, 240 snapshots per workspace, 500 objects and 20 MiB per capture. Retention management is an operator responsibility. The primary-region control plane is not automatically failed over. immutable storage policies, customer-managed encryption keys, transactional database backups, signed manifest trust roots,  automated retention and broader deployment tests are future extensions.
 
 The implementation is suitable for a working final-year project demonstration and further cloud deployment. It is not evidence that an enterprise disaster-recovery service has been independently audited or deployed.
 
 ## References
 
-- Project specification: *CloudShield Synopsis*, supplied by the group.
-- Spring Security OAuth2 Login: https://docs.spring.io/spring-security/reference/servlet/oauth2/login/index.html
-- Google OpenID Connect: https://developers.google.com/identity/openid-connect/openid-connect
-- Amazon S3 documentation: https://docs.aws.amazon.com/s3/
-- AWS Lambda Java documentation: https://docs.aws.amazon.com/lambda/latest/dg/lambda-java.html
-- EventBridge Scheduler: https://docs.aws.amazon.com/scheduler/
-- Terraform AWS provider: https://registry.terraform.io/providers/hashicorp/aws/latest/docs
+- Project specification: CloudShield Synopsis supplied by Group G360; cloud provider changed to Azure at the project owner's request.
+- [Spring Security OAuth2](https://docs.spring.io/spring-security/reference/servlet/oauth2/login/index.html)
+- [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect)
+- [Azure Blob Storage Java](https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blob-java-get-started)
+- [Azure Functions Java](https://learn.microsoft.com/en-us/azure/azure-functions/functions-reference-java)
+- [Azure timer trigger](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-timer)
+- [Azure ARM templates](https://learn.microsoft.com/en-us/azure/azure-resource-manager/templates/overview)

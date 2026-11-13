@@ -17,12 +17,13 @@ public class SecurityConfig {
   @Bean
   UserDetailsService users(RuntimeContext runtime) {
     String password = System.getenv().getOrDefault("CLOUDSHIELD_PASSWORD", "");
-    if (password.isBlank() && runtime.config().aws())
+    if (password.isBlank() && runtime.config().azure())
       throw new IllegalStateException(
-          "Set CLOUDSHIELD_PASSWORD to a unique password of at least 12 characters in AWS mode");
-    if (runtime.config().aws()
+          "Set CLOUDSHIELD_PASSWORD to a unique password of at least 12 characters in Azure mode");
+    if (runtime.config().azure()
         && (password.equals("CloudShield-Demo-2026!") || password.startsWith("replace-")))
-      throw new IllegalStateException("Replace the demo or example password before using AWS mode");
+      throw new IllegalStateException(
+          "Replace the demo or example password before using Azure mode");
     if (password.isBlank()) password = "CloudShield-Demo-2026!";
     if (password.length() < 12)
       throw new IllegalStateException("CLOUDSHIELD_PASSWORD must contain at least 12 characters");
@@ -82,10 +83,19 @@ public class SecurityConfig {
                         // Log diagnostic types/codes only: never tokens, claims or credentials.
                         Throwable cause = failure;
                         for (int depth = 0; cause != null && depth < 8; depth++) {
-                          String code = cause instanceof org.springframework.security.oauth2.core.OAuth2AuthenticationException oauth
-                              ? oauth.getError().getErrorCode() : "";
+                          String code =
+                              cause
+                                      instanceof
+                                      org.springframework.security.oauth2.core
+                                                  .OAuth2AuthenticationException
+                                              oauth
+                                  ? oauth.getError().getErrorCode()
+                                  : "";
                           org.slf4j.LoggerFactory.getLogger(SecurityConfig.class)
-                              .warn("Google sign-in failed: type={}, code={}", cause.getClass().getSimpleName(), code);
+                              .warn(
+                                  "Google sign-in failed: type={}, code={}",
+                                  cause.getClass().getSimpleName(),
+                                  code);
                           cause = cause.getCause();
                         }
                         response.sendRedirect("/login.html?google_error");

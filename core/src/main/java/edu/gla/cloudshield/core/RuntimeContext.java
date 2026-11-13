@@ -1,13 +1,5 @@
 package edu.gla.cloudshield.core;
 
-import java.time.Duration;
-import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
-import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.sns.SnsClient;
-
 public record RuntimeContext(
     Config config,
     BlobStore source,
@@ -20,44 +12,20 @@ public record RuntimeContext(
   public static RuntimeContext create(Config c) {
     BlobStore source, primary, secondary, recovery;
     Repository repository;
-    SnsClient sns = null;
-    if (c.aws()) {
-      var overrides =
-          ClientOverrideConfiguration.builder()
-              .apiCallTimeout(Duration.ofSeconds(40))
-              .apiCallAttemptTimeout(Duration.ofSeconds(15))
-              .build();
-      S3Client p =
-          S3Client.builder()
-              .region(Region.of(c.primaryRegion()))
-              .httpClientBuilder(UrlConnectionHttpClient.builder())
-              .overrideConfiguration(overrides)
-              .build();
-      S3Client s =
-          S3Client.builder()
-              .region(Region.of(c.secondaryRegion()))
-              .httpClientBuilder(UrlConnectionHttpClient.builder())
-              .overrideConfiguration(overrides)
-              .build();
-      source = new S3BlobStore(p, c.sourceBucket(), c.maxBytes());
-      primary = new S3BlobStore(p, c.primaryBucket(), c.maxBytes());
-      secondary = new S3BlobStore(s, c.secondaryBucket(), c.maxBytes());
-      recovery = new S3BlobStore(p, c.recoveryBucket(), c.maxBytes());
-      repository =
-          new DynamoRepository(
-              DynamoDbClient.builder()
-                  .region(Region.of(c.primaryRegion()))
-                  .httpClientBuilder(UrlConnectionHttpClient.builder())
-                  .overrideConfiguration(overrides)
-                  .build(),
-              c.table());
-      if (!c.topicArn().isBlank())
-        sns =
-            SnsClient.builder()
-                .region(Region.of(c.primaryRegion()))
-                .httpClientBuilder(UrlConnectionHttpClient.builder())
-                .overrideConfiguration(overrides)
-                .build();
+    if (c.azure()) {
+      source =
+          new AzureBlobStore(
+              AzureClients.container(c.primaryAccount(), c.sourceContainer()), c.maxBytes());
+      primary =
+          new AzureBlobStore(
+              AzureClients.container(c.primaryAccount(), c.primaryContainer()), c.maxBytes());
+      secondary =
+          new AzureBlobStore(
+              AzureClients.container(c.secondaryAccount(), c.secondaryContainer()), c.maxBytes());
+      recovery =
+          new AzureBlobStore(
+              AzureClients.container(c.recoveryAccount(), c.recoveryContainer()), c.maxBytes());
+      repository = new AzureTableRepository(AzureClients.table(c));
     } else {
       source = new LocalBlobStore(c.dataDir().resolve("source"));
       primary = new LocalBlobStore(c.dataDir().resolve("primary"));
@@ -65,7 +33,7 @@ public record RuntimeContext(
       recovery = new LocalBlobStore(c.dataDir().resolve("recovery"));
       repository = new LocalRepository(c.dataDir().resolve("metadata"));
     }
-    Alerts alerts = new Alerts(c, sns);
+    Alerts alerts = new Alerts(c, null);
     return new RuntimeContext(
         c,
         source,

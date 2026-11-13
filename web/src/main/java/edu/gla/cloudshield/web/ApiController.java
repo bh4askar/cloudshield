@@ -27,7 +27,7 @@ public class ApiController {
 
   @GetMapping("/public/mode")
   Map<String, Boolean> publicMode() {
-    return Map.of("demo", !Config.fromEnv().aws(), "googleEnabled", GoogleIdentity.enabled());
+    return Map.of("demo", !Config.fromEnv().azure(), "googleEnabled", GoogleIdentity.enabled());
   }
 
   @GetMapping("/api/csrf")
@@ -80,8 +80,10 @@ public class ApiController {
     result.put("scheduleTimezone", "Asia/Kolkata");
     result.put(
         "notifications",
-        runtime.config().topicArn().isBlank() && runtime.config().webhookUrl().isBlank()
-            ? "Local event log"
+        runtime.config().webhookUrl().isBlank()
+            ? (runtime.config().azure()
+                ? "Azure worker logs and dashboard activity"
+                : "Local event log")
             : "Configured external alerts");
     result.put("maxObjects", runtime.config().maxObjects());
     result.put("maxBytes", runtime.config().maxBytes());

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Recover a snapshot directly from secondary S3 when the primary control plane is unavailable.
-Requires Python 3.10+, boto3, and a role with ListBucket/GetObject on the secondary bucket.
+"""Recover a snapshot directly from secondary Azure Blob Storage when the primary control plane is unavailable.
+Requires Python 3.10+, azure-identity, azure-storage-blob, and Storage Blob Data Reader access.
 Writes only to a NEW local destination; never overwrites an existing directory.
 """
 import argparse
@@ -8,12 +8,13 @@ import hashlib
 import json
 import pathlib
 import re
-import boto3
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--bucket', required=True)
-    parser.add_argument('--region', required=True)
+    parser.add_argument('--account', required=True)
+    parser.add_argument('--container', default='backups')
     parser.add_argument('--tenant', default='demo', help='demo or the 32-character workspace ID from an exported report')
     parser.add_argument('--backup', help='Exact backup ID; omit to list available manifests')
     parser.add_argument('--destination', type=pathlib.Path)
@@ -22,25 +23,30 @@ def main():
     if args.tenant != 'demo' and not re.fullmatch(r'[a-f0-9]{32}', args.tenant):
         parser.error('Invalid workspace ID')
     backup_root = ('tenants/' + args.tenant + '/' if args.tenant != 'demo' else '') + 'backups/'
-    client = boto3.client('s3', region_name=args.region)
+    if not re.fullmatch(r'[a-z0-9]{3,24}', args.account):
+        parser.error('Invalid Azure storage account')
+    client = BlobServiceClient(f'https://{args.account}.blob.core.windows.net', credential=DefaultAzureCredential()).get_container_client(args.container)
     if not args.backup:
-        for page in client.get_paginator('list_objects_v2').paginate(Bucket=args.bucket, Prefix=backup_root):
-            for obj in page.get('Contents', []):
-                if obj['Key'].endswith('/manifest.json'):
-                    print(obj['Key'][len(backup_root):].split('/')[0])
+        for obj in client.list_blobs(name_starts_with=backup_root):
+            if obj.name.endswith('/manifest.json'):
+                print(obj.name[len(backup_root):].split('/')[0])
         return
     if not re.fullmatch(r'[a-zA-Z0-9-]{1,100}', args.backup) or args.destination is None:
         parser.error('Provide a valid backup ID and --destination')
     prefix = backup_root + args.backup + '/'
     def read(key):
-        response = client.get_object(Bucket=args.bucket, Key=key)
-        with response['Body'] as stream:
-            if response['ContentLength'] > 20 * 1024 * 1024:
-                raise ValueError('Object exceeds the 20 MiB recovery limit')
-            data = stream.read(20 * 1024 * 1024 + 1)
+        blob = client.get_blob_client(key)
+        props = blob.get_blob_properties()
+        if props.size > 20 * 1024 * 1024:
+            raise ValueError('Object exceeds the 20 MiB recovery limit')
+        from azure.core import MatchConditions
+        stream = blob.download_blob(etag=props.etag, match_condition=MatchConditions.IfNotModified)
+        data = bytearray()
+        for chunk in stream.chunks():
+            data.extend(chunk)
             if len(data) > 20 * 1024 * 1024:
                 raise ValueError('Object exceeds recovery limit')
-            return data
+        return bytes(data)
     document = read(prefix + 'manifest.json')
     if args.manifest_sha256 and hashlib.sha256(document).hexdigest() != args.manifest_sha256:
         raise ValueError('Manifest does not match trusted digest')
