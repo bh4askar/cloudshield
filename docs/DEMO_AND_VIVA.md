@@ -9,7 +9,7 @@
 5. **Test (90 seconds).** Run a restore test. Open details. Explain RTO, RPO age, changed-object bytes, verified objects and cleanup. Show the test prefix is empty.
 6. **Recover (60 seconds).** Restore the old backup. Open the recovery copy in Campus Register; it contains the earlier registrations. Switch back to the live source and show the newer data is still available.
 7. **Audit (45 seconds).** Show activity, alert delivery, export a report and demonstrate the dark-mode toggle.
-8. **Evidence and limits (75 seconds).** Show test results and, after real deployment, the Blob Storage regional buckets, timer triggers, failure notification settings and Azure Monitor logs. Explain bounded workload and manual control-plane disaster recovery.
+8. **Evidence and limits (75 seconds).** Show the public App Service dashboard, test results, Blob Storage regional containers, timer triggers, failure notification settings and Azure Monitor logs. Explain bounded workload and manual control-plane disaster recovery.
 
 Do not present a local folder as an actual Azure region, a `LOCAL_LOG` entry as a sent email, or local recovery times as Azure performance results.
 

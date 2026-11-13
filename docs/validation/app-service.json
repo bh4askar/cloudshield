@@ -1,0 +1,49 @@
+{
+  "checkedAt": "2026-11-13T16:06:02.396289+05:30",
+  "url": "https://cloudshield-g360-dashboard.azurewebsites.net",
+  "status": "PASSED",
+  "checks": [
+    "Public HTTPS health endpoint returns UP with certificate validation",
+    "Public root reaches the CloudShield sign-in page",
+    "HTTP redirects to HTTPS",
+    "Hosted dashboard uses the Azure backend",
+    "Existing Google OAuth client is enabled",
+    "Anonymous dashboard API access is rejected",
+    "Session cookie is Secure, HTTP-only and SameSite=Lax",
+    "Administrator can read existing Azure metadata",
+    "Backend regions match the existing deployment",
+    "Dashboard identity can read existing source blobs",
+    "Mutation without a CSRF token is rejected",
+    "Hosted dashboard submits a job to the existing queue",
+    "Existing Azure Functions worker completes the recovery test",
+    "Temporary recovery objects are cleaned up",
+    "Recovery verification preserves the live source",
+    "Google authorization uses the public HTTPS callback"
+  ],
+  "recoveryTest": {
+    "id": "20261113T103549234Z-a5c24c3c",
+    "type": "TEST",
+    "status": "SUCCEEDED",
+    "cleanupStatus": "CLEANED",
+    "rtoMillis": 351,
+    "changedObjects": 0
+  },
+  "javaSuite": {
+    "passed": 41,
+    "failed": 0,
+    "skippedOptionalAzureTests": 4,
+    "runs": 1
+  },
+  "appService": {
+    "name": "cloudshield-g360-dashboard",
+    "plan": "cloudshield-dashboard-f1",
+    "tier": "F1 Free",
+    "region": "centralindia",
+    "operatingSystem": "Linux",
+    "runtime": "Java 21",
+    "httpsOnly": true,
+    "alwaysOn": false
+  },
+  "publicGoogleSignIn": "Verified in browser: existing Google account reached its existing Azure workspace on the public HTTPS hostname.",
+  "deployedJarSha256": "850e4622484256eb4063143826e6b55a5bccea815513f6378cf0dfdbe89c01e9"
+}

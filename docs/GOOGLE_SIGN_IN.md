@@ -8,7 +8,7 @@ Homepage: https://sites.google.com/view/cloudshield-g360/home
 
 Privacy policy: https://sites.google.com/view/cloudshield-g360/privacy-policy
 
-The public pages are hosted free on Google Sites. They do not host the Java application. Public access to the dashboard still requires a deployment host and its exact HTTPS OAuth callback. A second real Google account has not been tested; automated tests cover cross-account isolation.
+The information and privacy pages are hosted free on Google Sites. The Java dashboard runs on Azure App Service at **[https://cloudshield-g360-dashboard.azurewebsites.net](https://cloudshield-g360-dashboard.azurewebsites.net)**. Its exact HTTPS OAuth callback is registered, and the existing Google account successfully reached its Azure workspace through this public hostname on 13 November 2026. A second real Google account has not been tested; automated tests cover cross-account isolation.
 
 Local credentials are stored in the gitignored `.env.local` and loaded by the Windows launcher. They are deliberately excluded from source and Windows distribution ZIPs. Keep that file private; configure credentials separately after extracting a shareable ZIP. Google sign-in is unavailable when credentials are absent.
 
@@ -24,12 +24,12 @@ Local credentials are stored in the gitignored `.env.local` and loaded by the Wi
 ```text
 http://localhost:8080/login/oauth2/code/google
 http://127.0.0.1:8080/login/oauth2/code/google
-https://YOUR_REAL_DOMAIN/login/oauth2/code/google
+https://cloudshield-g360-dashboard.azurewebsites.net/login/oauth2/code/google
 ```
 
 Only register loopback forms accepted by the Google console; `http://localhost:8080/...` is the standard development choice. Use the same hostname when opening the application; changing between `localhost` and `127.0.0.1` also changes browser cookies and redirect matching. Production redirect URLs must use HTTPS and match character-for-character.
 
-7. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` on the Java dashboard. Never put the secret in frontend JavaScript or commit it to Git. In production, use the protected `.env.production` file or your deployment secret store.
+7. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` on the Java dashboard. Never put the secret in frontend JavaScript or commit it to Git. The public deployment stores these in Azure App Service application settings. Other hosts can use a protected `.env.production` file or a deployment secret store. Register your own exact HTTPS callback when deploying to a different hostname.
 8. Restart the dashboard. The Google sign-in button becomes available.
 9. Google's **Testing** publishing status only admits configured test users. To let visitors create accounts, move the application to **In production / Published**, complete any required domain/brand checks and comply with Google's OAuth policies. This console step cannot be performed by source code alone.
 

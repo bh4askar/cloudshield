@@ -10,5 +10,15 @@
     "objects": 3,
     "bytes": 787
   },
-  "publicDashboardHosting": "DEFERRED"
+  "publicDashboardHosting": "DEPLOYED",
+  "publicDashboardUrl": "https://cloudshield-g360-dashboard.azurewebsites.net",
+  "publicDashboardService": "Azure App Service F1 (Free), Linux / Java 21, Central India",
+  "publicDeploymentChecksPassed": 16,
+  "publicGoogleSignIn": "PASSED",
+  "publicRecoveryTest": {
+    "status": "SUCCEEDED",
+    "cleanupStatus": "CLEANED",
+    "rtoMillis": 351,
+    "changedObjects": 0
+  }
 }

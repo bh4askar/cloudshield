@@ -1,12 +1,37 @@
 # Azure setup and operation
 
-CloudShield uses Java 21 with Azure Blob Storage, Table Storage, Storage Queues and Azure Functions Flex Consumption. The dashboard runs on the operator's computer. Public application hosting is a separate, deferred step.
+CloudShield uses Java 21 with Azure Blob, Table, and Queue Storage and Azure Functions Flex Consumption. The dashboard is publicly deployed on Azure App Service F1 (Free) in Central India and can also run locally at `http://localhost:8080`.
 
 ## Student deployment
 
 The installed resource group is `cloudshield-g360`. Primary storage and the worker are in `centralindia`; the independent second backup account is in `koreacentral`. These regions are allowed by the current student subscription policy. The source/primary, secondary and recovery accounts are separate. Recovery is deliberately unversioned with soft deletion disabled so test cleanup removes its bytes.
 
 The infrastructure uses Standard LRS storage, no VM, no premium plan and no always-ready Functions instances. Functions can scale to zero. The platform's minimum configurable maximum is 40 instances; per-instance queue processing and per-workspace metadata leases constrain concurrent work. Shared storage keys and anonymous blob access are disabled. The worker uses its managed identity; the operator uses Azure CLI sign-in.
+
+## Public dashboard on App Service
+
+Live URL: **[https://cloudshield-g360-dashboard.azurewebsites.net](https://cloudshield-g360-dashboard.azurewebsites.net)**
+
+The web app is `cloudshield-g360-dashboard`, on the Linux `cloudshield-dashboard-f1` plan (**F1 / Free**, Java 21) in `cloudshield-g360` / `centralindia`. It is deployed separately from the backend ARM template. HTTPS is enforced, TLS 1.2 is the minimum, FTP publishing is disabled, and Always On is off on the Free tier. An idle dashboard can take longer to start; the Functions schedules run independently.
+
+The dashboard has its own system-assigned managed identity with these roles scoped to the existing resources:
+
+| Existing resource | Dashboard role |
+|---|---|
+| Primary account's `source` container | Storage Blob Data Reader |
+| Recovery account's `recovery` container | Storage Blob Data Reader |
+| Primary account's `cloudshield` table | Storage Table Data Contributor |
+| Recovery account's `cloudshield-jobs` queue | Storage Queue Data Message Sender |
+
+App Service application settings select `CLOUDSHIELD_MODE=azure`, the three existing storage accounts, `AZURE_PRIMARY_REGION=centralindia`, `AZURE_SECONDARY_REGION=koreacentral`, `SERVER_ADDRESS=0.0.0.0`, `PORT=80`, and `COOKIE_SECURE=true`. The deployed limits remain `MAX_ACCOUNTS=10` and `MAX_BACKUPS_PER_ACCOUNT=240`. Store the unique administrator password and Google OAuth credentials in App Service settings; they are not included in the application JAR or repository.
+
+The registered Google callback is `https://cloudshield-g360-dashboard.azurewebsites.net/login/oauth2/code/google`. A real Google sign-in reached the existing account workspace through this hostname on 13 November 2026. See [deployment evidence](validation/app-service.json).
+
+After a successful `mvn clean verify`, update the existing dashboard with:
+
+```bash
+az webapp deploy --resource-group cloudshield-g360 --name cloudshield-g360-dashboard --src-path web/target/cloudshield-web-1.0.0.jar --type jar
+```
 
 ## Reproduce in your own subscription
 
@@ -19,7 +44,7 @@ The infrastructure uses Standard LRS storage, no VM, no premium plan and no alwa
 7. Seed the administrator sample source using `az storage blob upload-batch --account-name YOUR_PRIMARY_ACCOUNT --auth-mode login --source sample-data/application --destination source --destination-path application --overwrite false`. Google accounts create their own synthetic workspaces through SETUP jobs.
 8. Run a backup, a recovery test, a source change and a retained restore. Verify `REPLICATED`, `SUCCEEDED`, `CLEANED`, and that the old restored data differs from the unchanged live source.
 
-`scripts/check-function-package.py` checks all four triggers. `scripts/package-function.py` creates the deployment ZIP without local settings or credentials. The template intentionally grants the operator broad project data access; the public web application still enforces account isolation. A separately hosted dashboard should receive a separate identity and only the permissions it needs.
+`scripts/check-function-package.py` checks all four triggers and the required Azure SDK dependencies. `scripts/package-function.py` creates the deployment ZIP without local settings or credentials. The template intentionally grants the operator broad project data access; the public web application still enforces account isolation. The hosted dashboard uses the separate identity and scoped roles described above.
 
 ## Automation
 
@@ -61,7 +86,7 @@ Omit `--tenant` for the administrator workspace. The destination must be new. Ev
 
 ## Security, recovery limits and stopping
 
-Google sign-in continues to use the same OAuth application. Keep its secrets in the local private configuration and register the exact callback URL. The current local callback is `http://localhost:8080/login/oauth2/code/google`. Secrets are excluded from Git and source archives. Azure authentication uses `DefaultAzureCredential`; never place account keys in JavaScript.
+Google sign-in continues to use the same OAuth application. Keep local secrets in private configuration and hosted secrets in App Service application settings. Register the exact HTTPS callback shown above for the public deployment and `http://localhost:8080/login/oauth2/code/google` for local development. Secrets are excluded from Git and source archives. Azure authentication uses `DefaultAzureCredential`; never place account keys in JavaScript.
 
 This is object-level recovery for synthetic Campus Register JSON data. It is not a transactional database backup, a VM image backup or automatic failover of the whole control plane. A regional outage is not implied by a corrupted-copy test. A hard worker kill can leave temporary recovery objects until a later reconciliation run; inspect the recovery container after failures.
 

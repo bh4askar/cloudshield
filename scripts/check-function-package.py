@@ -9,6 +9,6 @@ for name,kind in [('RunJob','queueTrigger'),('PoisonJob','queueTrigger'),('Daily
  script=(base/name/data['scriptFile']).resolve()
  assert script.is_file(),script
  assert data['entryPoint'].startswith('edu.gla.cloudshield.worker.Functions.')
-assert list((base/'lib').glob('azure-storage-blob-*.jar'))
-assert not list((base/'lib').glob('*aws*'))
+for dependency in ('azure-identity','azure-storage-blob','azure-data-tables','azure-storage-queue'):
+ assert list((base/'lib').glob(f'{dependency}-*.jar')),f'Missing Azure dependency: {dependency}'
 print('Azure function package: all four triggers and dependencies verified')

@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart LR
-  A[Administrator browser] -->|HTTPS and session login| W[Spring Boot dashboard]
+  A[Browser and Google sign-in] -->|HTTPS and session login| W[Spring Boot dashboard on Azure App Service F1]
   W -->|Create job and query history| D[(Table Storage metadata)]
   W -->|Enqueue JSON| Q[Azure Storage Queue]
   Q --> L[Java Functions worker]
@@ -124,7 +124,7 @@ Let `t_start` be the recovery operation's start and `t_verified` the point at wh
 | GET | `/api/report` | Authenticated JSON download of metadata and evidence |
 | POST | `/logout` | Invalidates the authenticated session; CSRF required |
 
-The liveness endpoint does not prove Azure permissions or bucket health. A backup followed by a restore test is the end-to-end readiness check.
+The liveness endpoint does not prove Azure permissions or Blob Storage container health. A backup followed by a restore test is the end-to-end readiness check.
 
 ## Security and operating boundaries
 

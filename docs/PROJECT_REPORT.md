@@ -53,14 +53,16 @@ Local mode stores the two regional copies in different folders on one computer. 
 
 ```mermaid
 flowchart LR
-  Browser[Dashboard and Google sign-in] --> Web[Spring Boot web API]
-  Web --> Engine[Shared Java backup engine]
+  Browser[Dashboard and Google sign-in] --> Web[Spring Boot web API on Azure App Service]
+  Web --> Queue[Azure Queue Storage]
+  Web --> Metadata[Table Storage jobs and accounts]
+  Queue --> Worker[Java Functions worker]
   Schedule[Azure timer triggers] --> Worker[Java Functions worker]
-  Worker --> Engine
-  Engine --> Source[Source Blob Storage bucket]
-  Engine --> Primary[Primary backup bucket]
-  Engine --> Secondary[Secondary-region backup bucket]
-  Engine --> Recovery[Recovery and test bucket]
+  Worker --> Engine[Shared Java backup engine]
+  Engine --> Source[Source Blob Storage container]
+  Engine --> Primary[Primary backup container]
+  Engine --> Secondary[Secondary-region backup container]
+  Engine --> Recovery[Recovery and test container]
   Engine --> Metadata[Table Storage jobs and accounts]
   Engine --> Alerts[Azure Monitor failure notifications and operational logs]
 ```
