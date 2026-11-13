@@ -2,7 +2,7 @@
 
 Automated cloud backup and recovery for the Campus Register sample application. B.Tech CSE major project, Group G360, GLA University, 2026–27.
 
-CloudShield now uses **Microsoft Azure**. It creates timestamped SHA-256-verified snapshots, keeps independent copies in Central India and Korea Central, and restores into an isolated workspace. The dashboard shows backup history, recovery time, backup age, data changes, activity and cleanup results. Google sign-in gives each account its own workspace.
+CloudShield uses **Microsoft Azure**. It creates timestamped SHA-256-verified snapshots, keeps independent copies in Central India and Korea Central, and restores into an isolated workspace. The dashboard shows backup history, recovery time, backup age, data changes, activity and cleanup results. Google sign-in gives each account its own workspace.
 
 ## Status
 
