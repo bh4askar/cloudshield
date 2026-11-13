@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>CloudShield · Recovery control room</title>
+    <link rel="icon" href="/favicon.svg" />
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/polish.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="#overview"
+        ><img src="/favicon.svg" alt="" />CloudShield<span class="brand-dot"
+          >®</span
+        ></a
+      >
+      <div class="workspace">
+        <span class="workspace-icon">G</span>
+        <div>
+          <strong id="workspace-name">Group G360</strong
+          ><small id="workspace-description">Academic workspace</small>
+        </div>
+        <span class="chevron">⌄</span>
+      </div>
+      <span class="nav-label">WORKSPACE</span>
+      <nav aria-label="Main navigation">
+        <a href="#overview" data-nav="overview"><span>◫</span>Overview</a
+        ><a href="#backups" data-nav="backups"
+          ><span>▤</span>Backups <b id="nav-count">0</b></a
+        ><a href="#tests" data-nav="tests"><span>◉</span>Recovery tests</a
+        ><a href="#sample" data-nav="sample"><span>▦</span>Sample application</a
+        ><a href="#activity" data-nav="activity"
+          ><span>↗</span>Activity & alerts</a
+        ><a href="#settings" data-nav="settings"
+          ><span>⚙</span>Configuration</a
+        >
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="help-card">
+          <span class="tiny-shield">✓</span
+          ><strong>Store it. Test it. Trust it.</strong>
+          <p>A backup is only useful when it can be restored.</p>
+          <a href="#tests">Check your recovery →</a>
+        </div>
+        <div class="profile">
+          <span class="avatar">G3</span>
+          <div>
+            <strong id="profile-name">Project administrator</strong
+            ><small>GLA University · CSE</small>
+          </div>
+          <button
+            class="icon-button"
+            id="logout"
+            aria-label="Sign out"
+            title="Sign out"
+          >
+            ↪
+          </button>
+        </div>
+      </div>
+    </aside>
+    <div class="app-main">
+      <header class="topbar">
+        <div class="breadcrumbs">
+          Workspace <span>/</span> <strong id="breadcrumb">Overview</strong>
+        </div>
+        <div class="topbar-right">
+          <span id="connection-status" class="connection"
+            ><i></i>Connecting</span
+          ><span id="mode-badge" class="mode-badge">LOCAL DEMO</span
+          ><button
+            class="theme-toggle"
+            data-theme-toggle
+            aria-label="Toggle color theme"
+            aria-pressed="false"
+          ></button
+          ><span class="avatar small">G3</span>
+        </div>
+      </header>
+      <main id="content" tabindex="-1">
+        <div class="loading-state">Connecting to your control room…</div>
+      </main>
+      <footer class="footer">
+        <span>CloudShield <b>•</b> Automated cloud backup & recovery</span
+        ><span>G360 / 2026–27</span>
+      </footer>
+    </div>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <dialog id="job-dialog">
+      <div id="dialog-content"></div>
+      <div class="dialog-footer">
+        <button class="button" id="close-dialog">Close</button>
+      </div>
+    </dialog>
+  </body>
+</html>

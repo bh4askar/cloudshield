@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sign in · CloudShield</title>
+    <link rel="icon" href="/favicon.svg" />
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/polish.css" />
+    <script src="/login.js" defer></script>
+  </head>
+  <body class="login-body">
+    <button
+      class="theme-toggle login-theme"
+      data-theme-toggle
+      aria-label="Toggle color theme"
+      aria-pressed="false"
+    ></button>
+    <main class="login-shell">
+      <section class="login-story">
+        <a class="brand light" href="/"
+          ><img src="/favicon.svg" alt="" />CloudShield<span class="brand-dot"
+            >®</span
+          ></a
+        >
+        <div>
+          <span class="eyebrow mint">BUILT FOR THE UNEXPECTED</span>
+          <h1>Your data.<br />A second chance.</h1>
+          <p>
+            Automated backups. Two regions.<br />Recovery you can actually
+            verify.
+          </p>
+          <div class="login-route">
+            <span>Source</span><i>→</i><span>Backup</span><i>→</i
+            ><span>Verified recovery</span>
+          </div>
+        </div>
+        <small>G360 · B.Tech. major project · 2026–27</small>
+      </section>
+      <section class="login-form-panel">
+        <span class="eyebrow">RECOVERY STARTS HERE</span>
+        <h2>Welcome back.</h2>
+        <p class="muted">Sign in to your backup control room.</p>
+        <a
+          id="google-login"
+          class="button google-button"
+          aria-disabled="true"
+          tabindex="-1"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              fill="#4285F4"
+              d="M21.6 12.23c0-.71-.06-1.39-.18-2.05H12v3.88h5.38a4.6 4.6 0 0 1-2 3.03v2.52h3.24c1.9-1.75 2.98-4.33 2.98-7.38z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 22c2.7 0 4.96-.9 6.62-2.39l-3.24-2.52c-.9.6-2.05.96-3.38.96-2.6 0-4.8-1.76-5.59-4.12H3.07v2.59A10 10 0 0 0 12 22z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M6.41 13.93a6 6 0 0 1 0-3.86V7.48H3.07a10 10 0 0 0 0 9.04l3.34-2.59z"
+            />
+            <path
+              fill="#EA4335"
+              d="M12 5.95c1.47 0 2.79.5 3.83 1.5l2.87-2.87A9.62 9.62 0 0 0 12 2a10 10 0 0 0-8.93 5.48l3.34 2.59A5.99 5.99 0 0 1 12 5.95z"
+            />
+          </svg>
+          Sign in with Google
+        </a>
+        <p id="google-status" class="google-hint">
+          New here? Your private account is created on your first Google
+          sign-in.
+        </p>
+        <div class="login-divider">
+          <span>or use administrator access</span>
+        </div>
+        <form id="login-form" action="/login" method="post">
+          <label for="username">Username</label
+          ><input
+            id="username"
+            name="username"
+            autocomplete="username"
+            required
+            autofocus
+          /><label for="password">Password</label
+          ><input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+          /><input type="hidden" id="csrf-field" name="_csrf" />
+          <p id="login-error" class="error-text" role="alert" hidden></p>
+          <button class="button primary full" id="sign-in" disabled>
+            Sign in <span>→</span>
+          </button>
+        </form>
+        <div id="demo-credentials" class="demo-note" hidden>
+          <strong>Local demo credentials</strong><code>admin</code
+          ><code>CloudShield-Demo-2026!</code
+          ><small
+            >Use your configured credentials if you changed the defaults.</small
+          >
+        </div>
+        <p class="login-foot">
+          Google sign-in creates a private workspace. We never access your Gmail
+          inbox. <a href="/privacy.html">Privacy &amp; account information</a>
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

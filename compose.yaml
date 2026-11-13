@@ -1,0 +1,12 @@
+services:
+  cloudshield:
+    build: .
+    ports: ["127.0.0.1:8080:8080"]
+    environment:
+      CLOUDSHIELD_MODE: local
+      CLOUDSHIELD_PASSWORD: ${CLOUDSHIELD_PASSWORD:-CloudShield-Demo-2026!}
+    volumes:
+      - cloudshield-data:/app/data
+    restart: unless-stopped
+volumes:
+  cloudshield-data:

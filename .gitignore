@@ -1,0 +1,41 @@
+# Build output and local application data
+**/target/
+/data/
+/runtime/
+*.log
+*.zip
+*.jar
+__pycache__/
+*.pyc
+
+# Credentials and machine-specific configuration
+.env
+.env.*
+!.env.example
+!.env.production.example
+.aws/
+client_secret*.json
+credentials*.json
+*.pem
+*.key
+
+# Terraform state and local variable values
+**/.terraform/
+*.tfstate*
+*.tfplan
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+crash.log
+crash.*.log
+
+# Private browser verification images
+/docs/validation/google-login-recovery.jpg
+/docs/validation/public-homepage.jpg
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini

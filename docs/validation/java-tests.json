@@ -1,0 +1,48 @@
+{
+  "status": "PASSED",
+  "totalTests": 37,
+  "suites": [
+    {
+      "name": "edu.gla.cloudshield.core.BackupEngineTest",
+      "tests": "22",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "edu.gla.cloudshield.core.LocalRepositoryConcurrencyTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "edu.gla.cloudshield.core.TenantIsolationTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "edu.gla.cloudshield.web.GoogleIdentityTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "edu.gla.cloudshield.web.SecurityIntegrationTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "edu.gla.cloudshield.web.TenantApiTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ]
+}

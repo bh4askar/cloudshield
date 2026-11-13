@@ -1,0 +1,14 @@
+**/target
+runtime
+data
+.git
+infra/.terraform
+*.zip
+.env
+.env.local
+.env.production
+.env.*.local
+**/client_secret*.json
+**/*.tfstate*
+**/*.tfplan
+**/terraform.tfvars

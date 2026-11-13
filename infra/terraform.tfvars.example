@@ -1,0 +1,5 @@
+project_name     = "cloudshield-g360"
+primary_region   = "ap-south-1"
+secondary_region = "ap-southeast-1"
+alert_email      = "your-group-email@example.com"
+enable_schedules = true

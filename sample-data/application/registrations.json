@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "registrations": [
+    {
+      "id": "REG-101",
+      "student": "Aarav Sharma",
+      "course": "Cloud Computing",
+      "status": "Confirmed"
+    },
+    {
+      "id": "REG-102",
+      "student": "Diya Mehta",
+      "course": "Computer Networks",
+      "status": "Confirmed"
+    },
+    {
+      "id": "REG-103",
+      "student": "Rohan Verma",
+      "course": "Database Systems",
+      "status": "Pending"
+    },
+    {
+      "id": "REG-104",
+      "student": "Ananya Singh",
+      "course": "Cloud Computing",
+      "status": "Confirmed"
+    }
+  ]
+}
