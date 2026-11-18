@@ -12,6 +12,18 @@ The public dashboard runs on **Azure App Service F1 (Free), Linux, Java 21, in C
 
 The Free tier can sleep when idle, so the first visit may take longer. Scheduled backups and recovery tests run independently in Azure Functions. Backend storage, Functions and monitoring retain their own usage costs. See [validation](docs/VALIDATION.md) for recorded results and verification scope.
 
+## Dashboard experience
+
+The dashboard includes a clickable recovery readiness score, a dedicated alerts centre,
+live operation progress and activity, date-filtered analytics, resource cards, workspace
+search (Ctrl/Cmd+K), and a report preview with CSV export and browser PDF printing.
+Backup and recovery-test history support search, status, and date filters. All views
+use the current account's existing backup and job records and support light/dark themes
+and phone layouts. See [dashboard features](docs/DASHBOARD_FEATURES.md) for the scoring
+rules, alert review behaviour, and report semantics.
+
+Run the dependency-free dashboard checks with Node.js 20+: `node scripts/check-dashboard.cjs`.
+
 ## Run the dashboard locally
 
 Requirements: **Git, JDK 21 and Maven 3.9+**. The default local demonstration uses synthetic data and needs no Azure account. Python 3.10+ is only needed for the optional validation scripts.

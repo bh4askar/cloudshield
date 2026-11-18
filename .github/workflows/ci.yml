@@ -12,6 +12,10 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node scripts/check-dashboard.cjs
       - run: mvn -B -ntp verify
       - run: python -m json.tool infra/azure/main.json > /dev/null
       - run: python scripts/check-function-package.py

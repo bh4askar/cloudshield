@@ -13,7 +13,11 @@ const titles = {
   backups: "Backups",
   tests: "Recovery tests",
   sample: "Sample application",
-  activity: "Activity & alerts",
+  activity: "Activity",
+  alerts: "Alerts centre",
+  analytics: "Analytics",
+  resources: "Resources",
+  reports: "Reports",
   settings: "Configuration",
 };
 const $ = (selector) => document.querySelector(selector);
@@ -110,7 +114,9 @@ async function refresh() {
     $("#mode-badge").textContent =
       state.mode === "local" ? "LOCAL DEMO" : "AZURE STORAGE";
     $("#nav-count").textContent = state.backupCount;
+    updateWorkspaceChrome();
     render();
+    if (selectedJob && $("#job-dialog").open) await showJob(selectedJob, true);
     if (route === "sample") await loadSample();
   } catch (e) {
     $("#connection-status").textContent = "Disconnected";
@@ -125,13 +131,13 @@ function pageHead(title, description, buttons = "") {
   return `<div class="page-head"><div><h1>${title}</h1><p>${description}</p></div><div class="page-actions">${buttons}</div></div>`;
 }
 function actions() {
-  return '<a class="button" href="/api/report" download>↓ &nbsp; Export report</a><button class="button primary" data-action="backup">＋ &nbsp; Create backup</button>';
+  return '<a class="button" href="#reports">↓ &nbsp; Reports</a><button class="button primary" data-action="backup">＋ &nbsp; Create backup</button>';
 }
 function metric(label, value, note, icon = "◫", green = false) {
   return `<article class="metric"><div class="metric-top">${label}<span class="metric-icon">${icon}</span></div><div class="metric-value">${value}</div><div class="metric-note${green ? " green" : ""}">${note}</div></article>`;
 }
-function testChart() {
-  const tests = state.jobs
+function testChart(jobs = state.jobs) {
+  const tests = jobs
     .filter(
       (j) =>
         j.type === "TEST" && j.status === "SUCCEEDED" && j.rtoMillis != null,
@@ -148,7 +154,7 @@ function testChart() {
       .map((t, i) => {
         const h = Math.max(3, (t.rtoMillis / max) * 89),
           x = 43 + i * step;
-        return `<g><rect x="${x}" y="${106 - h}" width="${Math.min(32, step - 18)}" height="${h}" rx="3" fill="#78b79a"><title>${esc(date(t.startedAt))}: ${duration(t.rtoMillis)}</title></rect><text x="${x + 10}" y="125" text-anchor="middle">${i + 1}</text><text x="${x + 10}" y="${101 - h}" text-anchor="middle">${t.rtoMillis}</text></g>`;
+        return `<g tabindex="0" aria-label="${esc(date(t.startedAt))}: ${duration(t.rtoMillis)}"><title>${esc(date(t.startedAt))}: ${duration(t.rtoMillis)}</title><rect x="${x}" y="${106 - h}" width="${Math.min(32, step - 18)}" height="${h}" rx="3" fill="var(--green)"/><text x="${x + 10}" y="125" text-anchor="middle">${i + 1}</text><text x="${x + 10}" y="${101 - h}" text-anchor="middle">${t.rtoMillis}</text></g>`;
       })
       .join("");
   return `<div class="chart"><svg role="img" aria-label="Measured recovery time in milliseconds for the latest ${tests.length} successful tests" viewBox="0 0 ${width} ${height}"><path d="M28 20H475 M28 63H475 M28 106H475" stroke="#edf3ef" stroke-width="1"/>${bars}</svg></div><div class="chart-legend"><span><i></i>Recovery time (ms)</span><span>Oldest → newest successful test</span></div>`;
@@ -169,23 +175,33 @@ function overview() {
       "Your backups, recovery checks, and cloud resilience in one place.",
       actions(),
     ) +
+    readinessPanel() +
     `<section class="hero"><div><span class="eyebrow mint">YOUR RECOVERY POSTURE</span><h2>${protectedBoth ? "One backup. Two safe places." : latest ? "Your second copy needs attention." : "A little preparation. A lot of peace of mind."}</h2><p>${protectedBoth ? "Your latest snapshot is verified in both regions. Run a restore test to prove it is ready when you need it." : latest ? "The primary backup is available. Review the failed job and reconnect the secondary region." : "Create your first backup, then restore it in an isolated test environment. Know your recovery works before you need it."}</p><span class="hero-status"><i></i>${state.mode === "local" ? "Local simulation · no cloud resources in use" : "Azure Blob Storage · encrypted at rest"}</span></div><div class="region-flow"><div class="region-node">${cloudIcon()}<strong>${esc(state.primaryRegion)}</strong><small>PRIMARY REGION</small></div><span class="flow-link">⇢</span><div class="region-node">${cloudIcon()}<strong>${esc(state.secondaryRegion)}</strong><small>SECONDARY REGION</small></div></div></section>` +
     `<section class="metrics">${metric("Total snapshots", state.backupCount, `${state.replicatedCount} verified in both regions`, "▤", !!state.backupCount)}${metric("Logical backup data", size(state.protectedBytes), "One copy · excludes stored versions", "▧")}${metric("Latest test recovery time", last?.rtoMillis != null ? duration(last.rtoMillis) : "—", last ? "Measured restore + verification" : "Run your first recovery test", "↶")}${metric("Test environment", last ? badge(last.cleanupStatus) : "—", last?.cleanupStatus === "CLEANED" ? "Temporary objects removed" : "Created only for restore tests", "◇", last?.cleanupStatus === "CLEANED")}</section>` +
     `<section class="two-columns"><div class="panel"><div class="panel-head"><div><h2>Recovery performance</h2><p>Observed recovery time, measured on each successful test</p></div><span class="subtle-label">LATEST TESTS</span></div><div class="panel-body">${testChart()}</div></div><div class="panel"><div class="panel-head"><div><h2>Always on the schedule</h2><p>All schedules use India Standard Time</p></div><span class="subtle-label">IST</span></div><div class="panel-body"><div class="schedule-row"><span class="schedule-icon">▤</span><div><strong>Automatic backup</strong><small>Daily, 02:00 · next ${date(state.nextBackup)}</small></div><span class="schedule-tag">DAILY</span></div><div class="schedule-row"><span class="schedule-icon purple">↶</span><div><strong>Restore & verify</strong><small>Sunday, 02:30 · next ${date(state.nextTest)}</small></div><span class="schedule-tag">WEEKLY</span></div><p class="explain">${state.mode === "local" ? "Keep this app running for local schedules. Azure timers run independently when enabled." : "Azure Functions runs scheduled jobs independently when enabled, even with this dashboard closed."}</p></div></div></section>` +
     (failed
       ? `<div class="notice warning">${failed} failed operation${failed > 1 ? "s" : ""} recorded. Open <a href="#activity"><strong>Activity & alerts</strong></a> to review the cause.</div>`
       : "") +
-    `<section class="panel"><div class="panel-head"><div><h2>Recent backups</h2><p>Point-in-time copies of your sample cloud application</p></div><a class="button text" href="#backups">View all backups →</a></div>${backupTable(state.backups.slice(0, 4), true)}</section>`
+    `<section class="panel"><div class="panel-head"><div><h2>Recent backups</h2><p>Point-in-time copies of your sample cloud application</p></div><a class="button text" href="#backups">View all backups →</a></div>${backupTable(state.backups.slice(0, 4), true)}</section>` +
+    liveActivityPanel()
   );
 }
 function backups() {
+  const rows = matchingRows(state.backups, "backups");
   return (
     pageHead(
       "Your recovery points.",
       "Every snapshot keeps a timestamp, object manifest, and verified second copy.",
       actions(),
     ) +
-    `<div class="notice">Restore creates an isolated recovery copy you can open in the sample application. Existing source data stays available.</div><section class="panel"><div class="panel-head"><h2>Backup history</h2><span class="subtle-label">${state.backupCount} SNAPSHOTS</span></div>${backupTable(state.backups)}</section><section class="panel section-gap"><div class="panel-head"><h2>Restored copies</h2><p>Retained for inspection until you remove them</p></div>${restoreRows()}</section>`
+    `<div class="notice">Restore creates an isolated recovery copy you can open in the sample application. Existing source data stays available.</div><section class="panel"><div class="panel-head"><h2>Backup history</h2><span class="subtle-label">${rows.length} / ${state.backupCount} SNAPSHOTS</span></div>${filterToolbar(
+      "backups",
+      [
+        ["REPLICATED", "Both regions"],
+        ["PRIMARY_ONLY", "Primary only"],
+      ],
+      "Search backup ID or replication status…",
+    )}${rows.length || !state.backups.length ? backupTable(rows) : noMatches("backups")}</section><section class="panel section-gap"><div class="panel-head"><h2>Restored copies</h2><p>Retained for inspection until you remove them</p></div>${restoreRows()}</section>`
   );
 }
 function restoreRows() {
@@ -193,17 +209,6 @@ function restoreRows() {
   if (!rows.length)
     return '<div class="empty-state">Restore any backup to create a recovery copy.</div>';
   return `<div class="table-scroll"><table><thead><tr><th>RESTORE</th><th>STATUS</th><th>RECOVERY TIME</th><th>LOCATION</th><th></th></tr></thead><tbody>${rows.map((j) => `<tr><td>${date(j.createdAt)}</td><td>${badge(j.status)}</td><td>${duration(j.rtoMillis)}</td><td class="code">${esc(j.restorePrefix || "Pending")}</td><td>${j.status === "SUCCEEDED" ? `<button class="button small" data-action="view-restore" data-id="${esc(j.id)}">Open copy →</button>` : `<button class="button text" data-action="job" data-id="${esc(j.id)}">Details</button>`}</td></tr>`).join("")}</tbody></table></div>`;
-}
-function tests() {
-  let rows = state.jobs.filter((j) => j.type === "TEST");
-  return (
-    pageHead(
-      "Prove you can recover.",
-      "Automatic restore, checksum checks, application validation, and cleanup.",
-      `<a class="button" href="/api/report" download>↓ Export results</a><button class="button primary" data-action="test" ${!state.backupCount ? "disabled" : ""}>↶ Run recovery test</button>`,
-    ) +
-    `<div class="notice">RTO is observed restore + verification time. RPO is the backup age at test start. Changed objects measure the live data that differs from the recovery point.</div><div class="two-columns"><section class="panel"><div class="panel-head"><h2>Recovery time by test</h2></div><div class="panel-body">${testChart()}</div></section><section class="panel"><div class="panel-head"><h2>What each test does</h2></div><div class="panel-body"><div class="schedule-row"><span class="schedule-icon">1</span><div><strong>Recover & validate</strong><small>Read a verified copy; check every restored object</small></div></div><div class="schedule-row"><span class="schedule-icon">2</span><div><strong>Measure & clean up</strong><small>Record metrics; delete and check the test prefix</small></div></div><p class="explain">No persistent test compute is provisioned. Restore objects exist only for the duration of the test.</p></div></section></div><section class="panel"><div class="panel-head"><h2>Test history</h2><span class="subtle-label">${rows.length} RUNS</span></div>${!rows.length ? '<div class="empty-state"><div class="empty-symbol">◉</div><h3>No recovery tests yet</h3><p>Create a backup, then run your first restore test.</p></div>' : `<div class="table-scroll"><table><thead><tr><th>TEST · IST</th><th>RESULT</th><th>RTO</th><th>RPO AGE</th><th>CHANGED DATA</th><th>CLEANUP</th><th></th></tr></thead><tbody>${rows.map((j) => `<tr><td>${date(j.createdAt)}</td><td>${badge(j.status)}</td><td>${duration(j.rtoMillis)}</td><td>${age(j.rpoSeconds)}</td><td>${j.changedObjects == null ? "Unmeasured" : `${j.changedObjects} objects · ${size(j.changedBytes)}`}</td><td>${badge(j.cleanupStatus)}</td><td><button class="button text" data-action="job" data-id="${esc(j.id)}">Details →</button></td></tr>`).join("")}</tbody></table></div>`}</section>`
-  );
 }
 function sample() {
   const restores = state.jobs.filter(
@@ -238,16 +243,6 @@ async function loadSample() {
     sampleRows = { error: e.message };
   }
   if (route === "sample") render();
-}
-function activity() {
-  return (
-    pageHead(
-      "Every action, accounted for.",
-      "Backup outcomes, recovery evidence, cleanup status, and notification delivery.",
-      `<a class="button" href="/api/report" download>↓ Export audit report</a>`,
-    ) +
-    `<div class="notice">Alert destination: <strong>${esc(state.notifications)}</strong>. ${state.mode === "local" ? "Local demo alerts are recorded here and in the application log." : ""}</div><section class="panel"><div class="panel-head"><h2>Operation log</h2><span class="subtle-label">LATEST ${state.jobs.length} OPERATIONS</span></div>${!state.jobs.length ? '<div class="empty-state">Your backup and recovery operations will appear here.</div>' : state.jobs.map((j) => `<div class="activity-row"><span class="activity-dot">${j.status === "SUCCEEDED" ? "✓" : j.status === "FAILED" ? "!" : "↻"}</span><div><h3>${esc({ BACKUP: "Backup snapshot", TEST: "Recovery test", RESTORE: "Restore copy", SETUP: "Workspace setup", CHANGE: "Application update" }[j.type])} &nbsp; ${badge(j.status)}</h3><p>${esc(j.message)}</p><small>${date(j.createdAt)} IST · ${esc(j.trigger)} · Alert: ${esc(j.notificationStatus)}</small></div><button class="button text" data-action="job" data-id="${esc(j.id)}">Details →</button></div>`).join("")}</section>`
-  );
 }
 function settings() {
   return (
@@ -296,6 +291,7 @@ function settings() {
 }
 function render() {
   if (!state) return;
+  updateWorkspaceChrome();
   if (state.account) {
     const personal = state.account.id !== "demo";
     $("#workspace-name").textContent = personal
@@ -329,12 +325,34 @@ function render() {
     if (a.dataset.nav === route) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   });
-  const next = { overview, backups, tests, sample, activity, settings }[
-    route
-  ]();
+  const next =
+    activeOperations() +
+    {
+      overview,
+      backups,
+      tests: recoveryTestsPage,
+      sample,
+      activity: operationsPage,
+      alerts: alertsPage,
+      analytics: analyticsPage,
+      resources: resourcesPage,
+      reports: reportsPage,
+      settings,
+    }[route]();
   if (next !== lastRender) {
+    const focused = document.activeElement;
+    const focusId = focused?.id;
+    const selection = focused?.selectionStart;
     $("#content").innerHTML = next;
     lastRender = next;
+    if (focusId) {
+      const replacement = document.getElementById(focusId);
+      if (replacement && $("#content").contains(replacement)) {
+        replacement.focus({ preventScroll: true });
+        if (typeof selection === "number" && replacement.type === "search")
+          replacement.setSelectionRange(selection, selection);
+      }
+    }
   }
   if (lastRoute !== route) {
     $("#content").classList.remove("content-enter");
@@ -351,13 +369,16 @@ async function submit(type, backupId) {
     body: JSON.stringify({ type, backupId: backupId || null }),
   });
   toast(
-    `${type === "BACKUP" ? "Backup" : type === "TEST" ? "Recovery test" : "Restore"} queued. Track the result in Activity & alerts.`,
+    `${type === "BACKUP" ? "Backup" : type === "TEST" ? "Recovery test" : "Restore"} queued. Opening live operation progress.`,
   );
   await refresh();
+  await showJob(job.id);
   return job;
 }
-async function showJob(id) {
+async function showJob(id, liveUpdate = false) {
   const job = await api("/api/jobs/" + encodeURIComponent(id));
+  if (liveUpdate && (selectedJob !== id || !$("#job-dialog").open)) return;
+  selectedJob = id;
   const details = [
     ["Operation", job.type],
     ["Status", job.status],
@@ -375,8 +396,8 @@ async function showJob(id) {
     ["Alert delivery", job.notificationStatus],
   ];
   $("#dialog-content").innerHTML =
-    `<h2>Operation details</h2><span class="code muted">${esc(job.id)}</span><div class="notice ${job.status === "FAILED" ? "warning" : ""}">${esc(job.message)}</div><div class="detail-grid">${details.map(([k, v]) => `<div class="detail-item"><small>${k}</small><strong>${esc(v ?? "—")}</strong></div>`).join("")}</div>${job.notificationError ? `<p class="error-text">${esc(job.notificationError)}</p>` : ""}<p class="explain">Changed bytes count whole current objects, not record-level or byte-level loss. Recovery time excludes the later live-source comparison and cleanup.</p>`;
-  $("#job-dialog").showModal();
+    `<h2>${esc(jobNames[job.type] || "Operation")} progress</h2><span class="code muted">${esc(job.id)}</span>${jobProgress(job)}<div class="notice ${job.status === "FAILED" ? "warning" : ""}">${esc(job.message)}</div><div class="detail-grid">${details.map(([k, v]) => `<div class="detail-item"><small>${k}</small><strong>${esc(v ?? "—")}</strong></div>`).join("")}</div>${job.notificationError ? `<p class="error-text">${esc(job.notificationError)}</p>` : ""}<p class="explain">Changed bytes count whole current objects, not record-level or byte-level loss. Recovery time excludes the later live-source comparison and cleanup.</p>`;
+  if (!$("#job-dialog").open) $("#job-dialog").showModal();
 }
 document.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
@@ -426,6 +447,9 @@ window.addEventListener("hashchange", () => {
   if (route === "sample") loadSample();
 });
 $("#close-dialog").addEventListener("click", () => $("#job-dialog").close());
+$("#job-dialog").addEventListener("close", () => {
+  selectedJob = null;
+});
 $("#logout").addEventListener("click", async () => {
   if (!csrf) csrf = await api("/api/csrf");
   const form = document.createElement("form");
@@ -443,7 +467,7 @@ refresh().then(() => {
   if (route === "sample") loadSample();
 });
 setInterval(() => {
-  if (!document.hidden && !$("#job-dialog").open) refresh();
+  if (!document.hidden && !reportSnapshot) refresh();
 }, 4000);
 
 const navIcons = {
@@ -455,11 +479,17 @@ const navIcons = {
   sample:
     '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/>',
   activity: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  alerts: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
+  analytics: '<path d="M4 3v18h17M8 16v-5m5 5V7m5 9V4"/>',
+  resources:
+    '<rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6h1m-1 11h1"/>',
+  reports: '<path d="M14 2H5v20h14V7zM14 2v5h5M8 11h8m-8 4h8m-8 4h5"/>',
   settings:
     '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--paper)"/><circle cx="15" cy="17" r="3" fill="var(--paper)"/>',
 };
 function refreshThemeButtons() {
   document.querySelectorAll("[data-nav]").forEach((link) => {
+    link.setAttribute("title", titles[link.dataset.nav]);
     link.querySelector("span").innerHTML =
       '<svg viewBox="0 0 24 24" aria-hidden="true">' +
       navIcons[link.dataset.nav] +
