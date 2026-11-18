@@ -16,6 +16,7 @@ jobs:
         with:
           node-version: "22"
       - run: node scripts/check-dashboard.cjs
+      - run: node scripts/check-faq.cjs
       - run: mvn -B -ntp verify
       - run: python -m json.tool infra/azure/main.json > /dev/null
       - run: python scripts/check-function-package.py

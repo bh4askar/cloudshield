@@ -22,7 +22,14 @@ use the current account's existing backup and job records and support light/dark
 and phone layouts. See [dashboard features](docs/DASHBOARD_FEATURES.md) for the scoring
 rules, alert review behaviour, and report semantics.
 
+**Ask CloudShield** is a floating FAQ chat in the bottom-right corner. Its compact
+panel offers typed questions, relevant follow-up suggestions, and curated guidance
+for backups, recovery, alerts, reports, accounts, and common errors. It can explain
+the latest loaded workspace status. Matching stays in the browser; no AI API or
+additional cloud service is required. See [the assistant guide](docs/ASK_CLOUDSHIELD.md).
+
 Run the dependency-free dashboard checks with Node.js 20+: `node scripts/check-dashboard.cjs`.
+Run the FAQ checks with `node scripts/check-faq.cjs`.
 
 ## Run the dashboard locally
 

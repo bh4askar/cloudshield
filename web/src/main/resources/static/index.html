@@ -11,6 +11,9 @@
     <link rel="stylesheet" href="/features.css" />
     <script src="/features.js" defer></script>
     <script src="/app.js" defer></script>
+    <link rel="stylesheet" href="/ask-cloudshield.css" />
+    <script src="/ask-cloudshield-faq.js" defer></script>
+    <script src="/ask-cloudshield.js" defer></script>
   </head>
   <body>
     <aside class="sidebar">
@@ -128,6 +131,97 @@
       </footer>
     </div>
     <div id="toast" class="toast" role="status" hidden></div>
+    <aside
+      id="ask-cloudshield"
+      class="ask-widget"
+      aria-label="CloudShield help"
+    >
+      <section
+        id="ask-panel"
+        class="ask-panel"
+        role="region"
+        aria-labelledby="ask-title"
+        hidden
+      >
+        <header class="ask-header">
+          <img class="ask-logo" src="/ask-cloudshield-logo.png" alt="" />
+          <div>
+            <h2 id="ask-title">Ask CloudShield</h2>
+            <p><span class="ask-status-dot"></span> Your FAQ assistant</p>
+          </div>
+          <button
+            id="ask-clear"
+            class="ask-icon"
+            type="button"
+            aria-label="Start a new chat"
+            title="Start a new chat"
+          >
+            ↻
+          </button>
+          <button
+            id="ask-close"
+            class="ask-icon"
+            type="button"
+            aria-label="Minimize Ask CloudShield"
+            title="Minimize"
+          >
+            −
+          </button>
+        </header>
+        <div
+          id="ask-messages"
+          class="ask-messages"
+          role="log"
+          aria-label="Chat messages"
+          aria-live="polite"
+          aria-relevant="additions text"
+          tabindex="0"
+        ></div>
+        <div
+          id="ask-suggestions"
+          class="ask-suggestions"
+          aria-label="Suggested questions"
+        ></div>
+        <form id="ask-form" class="ask-composer">
+          <label class="ask-sr-only" for="ask-input"
+            >Ask a CloudShield question</label
+          >
+          <input
+            id="ask-input"
+            type="text"
+            maxlength="500"
+            autocomplete="off"
+            placeholder="Ask about backups, recovery…"
+          />
+          <button
+            id="ask-send"
+            type="submit"
+            aria-label="Send question"
+            disabled
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m5 12 7-7 7 7M12 5v15" />
+            </svg>
+          </button>
+        </form>
+        <p class="ask-disclosure">
+          Predefined guidance · Chat stays in this tab
+        </p>
+      </section>
+      <button
+        id="ask-launcher"
+        class="ask-launcher"
+        type="button"
+        aria-expanded="false"
+        aria-controls="ask-panel"
+      >
+        <img src="/ask-cloudshield-logo.png" alt="" /><span
+          >Ask CloudShield</span
+        ><svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m9 5 7 7-7 7" />
+        </svg>
+      </button>
+    </aside>
     <dialog
       id="job-dialog"
       aria-label="Operation details and recovery readiness"
